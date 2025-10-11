@@ -1,18 +1,49 @@
 # toolhive-webhook
-// TODO(user): Add simple overview of use/purpose
+
+A Kubernetes admission webhook for [ToolHive](https://github.com/stacklok/toolhive) MCPServer resources that automatically injects Kagenti client registration initContainer to enable registration of the server with Keycloak.
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+This webhook provides automatic client registration for MCPServer resources deployed in Kubernetes. When enabled, it mutates MCPServer Custom Resource (CR) to include an initContainer that registers the server as a client in Keycloak before the main container starts. This enables secure, automated service authentication within the Kagenti platform.
+
+The webhook supports:
+
+- Automatic injection of `kagenti-client-registration` initContainer
+
+- Configurable client registration via the `--enable-client-registration` flag
+
+- Shared volume mounting for credential propagation
+
+- Integration with cert-manager for webhook TLS certificates
+
+### Configuration
+
+The webhook supports the following configuration options:
+
+- `--enable-client-registration`: Enable automatic client registration in Keycloak (default: true)
+- `--webhook-cert-path`: Directory containing webhook TLS certificates (default: auto-generated)
+- `--webhook-cert-name`: Webhook certificate filename (default: tls.crt)
+- `--webhook-cert-key`: Webhook key filename (default: tls.key)
+
+The webhook requires a ConfigMap named `environments` in the same namespace with the following keys:
+
+- `KEYCLOAK_URL`: Keycloak server URL
+- `KEYCLOAK_REALM`: Keycloak realm name
+- `KEYCLOAK_ADMIN_USERNAME`: Admin username for client registration
+- `KEYCLOAK_ADMIN_PASSWORD`: Admin password for client registration
+
 
 ## Getting Started
 
 ### Prerequisites
-- go version v1.23.0+
+
+- go version v1.24.4+
 - docker version 17.03+.
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
 
 ### To Deploy on the cluster
+
 **Build and push your image to the location specified by `IMG`:**
 
 ```sh
@@ -48,6 +79,7 @@ kubectl apply -k config/samples/
 >**NOTE**: Ensure that the samples has default values to test it out.
 
 ### To Uninstall
+
 **Delete the instances (CRs) from the cluster:**
 
 ```sh
@@ -111,6 +143,7 @@ previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml
 is manually re-applied afterwards.
 
 ## Contributing
+
 // TODO(user): Add detailed information on how you would like others to contribute to this project
 
 **NOTE:** Run `make help` for more information on all potential `make` targets
