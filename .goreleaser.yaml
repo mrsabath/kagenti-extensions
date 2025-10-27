@@ -6,8 +6,8 @@ before:
     - go mod download
 
 builds:
-  - id: toolhive-webhook
-    main: ./toolhive-webhook/cmd/main.go
+  - id: kagenti-webhook
+    main: ./kagenti-webhook/cmd/main.go
     binary: manager
     env:
       - CGO_ENABLED=0
@@ -24,7 +24,7 @@ builds:
       - -X main.date={{.Date}}
 
 archives:
-  - id: toolhive-webhook
+  - id: kagenti-webhook
     format: tar.gz
     name_template: >-
       {{ .ProjectName }}_
@@ -36,16 +36,16 @@ archives:
     files:
       - LICENSE*
       - README*
-      - toolhive-webhook/README.md
+      - kagenti-webhook/README.md
 
 dockers:
   - image_templates:
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:{{ .Tag }}-amd64"
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:v{{ .Major }}-amd64"
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:latest-amd64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:{{ .Tag }}-amd64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:v{{ .Major }}-amd64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:v{{ .Major }}.{{ .Minor }}-amd64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:latest-amd64"
     use: buildx
-    dockerfile: toolhive-webhook/Dockerfile
+    dockerfile: kagenti-webhook/Dockerfile
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -54,19 +54,19 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
     extra_files:
-      - toolhive-webhook/go.mod
-      - toolhive-webhook/go.sum
-      - toolhive-webhook/cmd
-      - toolhive-webhook/internal
+      - kagenti-webhook/go.mod
+      - kagenti-webhook/go.sum
+      - kagenti-webhook/cmd
+      - kagenti-webhook/internal
 
   - image_templates:
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:{{ .Tag }}-arm64"
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:v{{ .Major }}-arm64"
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:v{{ .Major }}.{{ .Minor }}-arm64"
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:latest-arm64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:{{ .Tag }}-arm64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:v{{ .Major }}-arm64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:v{{ .Major }}.{{ .Minor }}-arm64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:latest-arm64"
     use: buildx
     goarch: arm64
-    dockerfile: toolhive-webhook/Dockerfile
+    dockerfile: kagenti-webhook/Dockerfile
     build_flag_templates:
       - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -75,31 +75,31 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
       - "--label=org.opencontainers.image.source={{.GitURL}}"
     extra_files:
-      - toolhive-webhook/go.mod
-      - toolhive-webhook/go.sum
-      - toolhive-webhook/cmd
-      - toolhive-webhook/internal
+      - kagenti-webhook/go.mod
+      - kagenti-webhook/go.sum
+      - kagenti-webhook/cmd
+      - kagenti-webhook/internal
 
 docker_manifests:
-  - name_template: "ghcr.io/kagenti/toolhive-webhook:{{ .Tag }}"
+  - name_template: "ghcr.io/kagenti/kagenti-webhook:{{ .Tag }}"
     image_templates:
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:{{ .Tag }}-amd64"
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:{{ .Tag }}-arm64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:{{ .Tag }}-amd64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:{{ .Tag }}-arm64"
 
-  - name_template: "ghcr.io/kagenti/toolhive-webhook:v{{ .Major }}"
+  - name_template: "ghcr.io/kagenti/kagenti-webhook:v{{ .Major }}"
     image_templates:
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:v{{ .Major }}-amd64"
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:v{{ .Major }}-arm64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:v{{ .Major }}-amd64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:v{{ .Major }}-arm64"
 
-  - name_template: "ghcr.io/kagenti/toolhive-webhook:v{{ .Major }}.{{ .Minor }}"
+  - name_template: "ghcr.io/kagenti/kagenti-webhook:v{{ .Major }}.{{ .Minor }}"
     image_templates:
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:v{{ .Major }}.{{ .Minor }}-amd64"
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:v{{ .Major }}.{{ .Minor }}-arm64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:v{{ .Major }}.{{ .Minor }}-amd64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:v{{ .Major }}.{{ .Minor }}-arm64"
 
-  - name_template: "ghcr.io/kagenti/toolhive-webhook:latest"
+  - name_template: "ghcr.io/kagenti/kagenti-webhook:latest"
     image_templates:
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:latest-amd64"
-      - "ghcr.io/kagenti/kagenti-extensions/toolhive-webhook:latest-arm64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:latest-amd64"
+      - "ghcr.io/kagenti/kagenti-extensions/kagenti-webhook:latest-arm64"
 
 checksum:
   name_template: 'checksums.txt'

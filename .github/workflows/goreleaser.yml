@@ -12,6 +12,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   REPO: kagenti/kagenti-extensions
+  WEBHOOK_NAME: kagenti-webhook
   CHARTS_PATH: ./charts
 
 jobs:
@@ -56,8 +57,8 @@ jobs:
       - name: Package and push toolhive webhook chart
         run: |
           chartVersion=$(echo ${{ github.ref_name }} | cut -c 2-)
-          chartPackageName="toolhive-webhook-chart-${chartVersion}.tgz"
-          cd ${{ env.CHARTS_PATH }}/toolhive-webhook
+          chartPackageName="webhook-chart-${chartVersion}.tgz"
+          cd ${{ env.CHARTS_PATH }}/kagenti-webhook
           sed -i "s/__PLACEHOLDER__/${chartVersion}/g" values.yaml
           helm package . --destination . --version ${chartVersion} --app-version ${chartVersion}
           helm push "./${chartPackageName}" oci://${{ env.REGISTRY }}/${{ env.REPO }}

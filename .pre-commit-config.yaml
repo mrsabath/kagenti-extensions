@@ -6,8 +6,9 @@ repos:
       - id: end-of-file-fixer
       - id: check-added-large-files
         args: ['--maxkb=1024']
-        exclude: ^toolhive-webhook/bin/
+        exclude: ^kagenti-webhook/bin/
       - id: check-yaml
+        args: ['--allow-multiple-documents']
         # Exclude Helm templates as they contain Go template syntax
         exclude: ^charts/.*/templates/.*\.yaml$
       - id: check-json
@@ -24,19 +25,19 @@ repos:
     hooks:
       - id: go-fmt
         name: go-fmt
-        entry: bash -c 'cd toolhive-webhook && go fmt ./...'
+        entry: bash -c 'cd kagenti-webhook && go fmt ./...'
         language: system
-        files: ^toolhive-webhook/.*\.go$
+        files: ^kagenti-webhook/.*\.go$
         pass_filenames: false
       - id: go-vet
         name: go-vet
-        entry: bash -c 'cd toolhive-webhook && go vet ./...'
+        entry: bash -c 'cd kagenti-webhook && go vet ./...'
         language: system
-        files: ^toolhive-webhook/.*\.go$
+        files: ^kagenti-webhook/.*\.go$
         pass_filenames: false
       - id: go-mod-tidy
         name: go-mod-tidy
-        entry: bash -c 'cd toolhive-webhook && go mod tidy'
+        entry: bash -c 'cd kagenti-webhook && go mod tidy'
         language: system
-        files: ^toolhive-webhook/(go\.mod|go\.sum)$
+        files: ^kagenti-webhook/(go\.mod|go\.sum)$
         pass_filenames: false
