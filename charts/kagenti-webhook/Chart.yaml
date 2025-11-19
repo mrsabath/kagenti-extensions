@@ -1,5 +1,5 @@
 apiVersion: v2
-name: kagenti-webhook
+name: kagenti-webhook-chart
 description: A Kubernetes admission webhook for MCPServer resources
 type: application
 version: 0.1.0
