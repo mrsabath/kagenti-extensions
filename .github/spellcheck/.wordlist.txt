@@ -373,3 +373,11 @@ crt
 Mutator
 Uninstallation
 Kagent
+MCP
+Istio's
+MCPServers
+podTemplateSpec
+stacklok
+JWT
+spiffe
+EmptyDir
