@@ -5,6 +5,7 @@ builds:
   dir: kagenti-webhook
   main: ./cmd
   binary: kagenti-webhook-manager
+
   goos:
   - linux
   - darwin
@@ -28,7 +29,7 @@ kos:
     tags:
       - '{{.Version}}'
       - latest
-    bare: true
+    bare: false
     preserve_import_paths: false
     platforms:
       - linux/amd64
