@@ -119,7 +119,7 @@ func authHandler(w http.ResponseWriter, r *http.Request, jwksURL, issuer, audien
 	// Validate JWT
 	if err := validateJWT(tokenString, jwksURL, issuer, audience); err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(fmt.Sprintf("unauthorized: %v", err)))
+		w.Write([]byte("unauthorized"))
 		log.Printf("Unauthorized request (invalid token): %s %s - %v", r.Method, r.URL.Path, err)
 		return
 	}
