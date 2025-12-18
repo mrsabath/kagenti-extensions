@@ -34,13 +34,13 @@ kubectl apply -f "keycloak-namespace.yaml"
 kubectl apply -f "keycloak.yaml" -n keycloak
 ```
 
-### 6. Access Keycloak
+### 6. Port Forward Keycloak
 
-Open in your browser:
+```bash
+kubectl port-forward service/keycloak -n keycloak 8080:8080
+```
 
-```
-http://keycloak.localtest.me:8080
-```
+You can now access Keycloak: http://keycloak.localtest.me:8080
 
 **Default credentials:**
 ```
@@ -61,7 +61,7 @@ Add your own container image by replacing placeholders:
 Apply the deployment:
 
 ```bash
-kubectl apply -f example_deployment_copy.yaml
+kubectl apply -f example_deployment_spiffe.yaml
 ```
 
 ### 8. Verify Client Registration in Keycloak
