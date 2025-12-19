@@ -14,21 +14,21 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ COMPONENT_NAME }}
+  name: my-app
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ COMPONENT_NAME }}
+      app.kubernetes.io/name: my-app
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ COMPONENT_NAME }}
+        app.kubernetes.io/name: my-app
     spec:
       imagePullSecrets:
         - name: ghcr-secret
       containers:
-        - name: {{ COMPONENT_NAME }}
-          image: {{ IMAGE_REGISTRY }}/{{ IMAGE_NAME }}:{{ IMAGE_TAG }}
+        - name: my-app
+          image: busybox:latest
           volumeMounts:
             - name: shared-data
               mountPath: /shared
@@ -68,7 +68,7 @@ spec:
                   name: environments
                   key: KEYCLOAK_ADMIN_PASSWORD
             - name: CLIENT_NAME
-              value: {{ COMPONENT_NAME }}
+              value: my-app
           volumeMounts:
             - name: shared-data
               mountPath: /shared
