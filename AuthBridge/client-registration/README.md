@@ -60,27 +60,23 @@ Password: admin
 
 ### 7. Configure Your SPIFFE-Enabled Deployment
 
-Edit `example_deployment_spiffe.yaml`:
-
-Add your own container image by replacing placeholders:
-    - `COMPONENT_NAME`
-    - `IMAGE_REGISTRY`
-    - `IMAGE_NAME`
-    - `IMAGE_TAG`
-
-Apply the deployment:
+Apply the example deployment:
 
 ```bash
 kubectl apply -f example_deployment_spiffe.yaml
 ```
+
+The example deployment, name `my-app`, will run BusyBox along with everything needed for automated client registration with KeyCloak.
 
 ### 8. Verify Client Registration in Keycloak
 
 Wait for the client registration to complete.
 
 ```bash
-kubectl wait --for=condition=available --timeout=120s deployment/COMPONENT_NAME
+kubectl wait --for=condition=available --timeout=120s deployment/my-app
 ```
 Log in to Keycloak and navigate to [Clients](http://keycloak.localtest.me:8080/admin/master/console/#/master/clients).
 
-Confirm a new client has been created; `Client ID` should be a SPIFFE ID and `Name` should be `COMPONENT_NAME`.
+Confirm a new client has been created; `Client ID` should be a SPIFFE ID and `Name` should be `my-app`.
+
+![`my-app` client](images/my-app_client.png)
