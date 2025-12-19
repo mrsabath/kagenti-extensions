@@ -100,8 +100,14 @@ def get_client_id() -> str:
         raise Exception('SVID JWT does not contain a "sub" claim.')
     return decoded["sub"]
 
+client_name = get_env_var("CLIENT_NAME")
 
-client_id = get_client_id()
+# If SPIFFE is enabled, use the client ID from the SVID JWT.
+# Otherwise, use the client name as the client ID.
+if get_env_var("SPIRE_ENABLED", "false").lower() == "true":
+    client_id = get_client_id()
+else:
+    client_id = client_name
 
 try:
     KEYCLOAK_URL = get_env_var("KEYCLOAK_URL")
@@ -131,8 +137,6 @@ keycloak_admin = KeycloakAdmin(
     realm_name=get_env_var("KEYCLOAK_REALM"),
     user_realm_name="master",
 )
-
-client_name = get_env_var("CLIENT_NAME")
 
 internal_client_id = register_client(
     keycloak_admin,

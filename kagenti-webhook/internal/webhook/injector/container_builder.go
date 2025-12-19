@@ -73,7 +73,9 @@ func BuildClientRegistrationContainer(clientID, name, namespace string) corev1.C
 
 	clientId := namespace + "/" + name
 	return corev1.Container{
-		Name:            ClientRegistrationContainerName,
+		Name: ClientRegistrationContainerName,
+		// // Use the following image after we have solidified kagenti-extensions
+		// Image:           "ghcr.io/kagenti/kagenti-extensions/client-registration:latest",
 		Image:           "ghcr.io/kagenti/kagenti/client-registration:latest",
 		ImagePullPolicy: corev1.PullIfNotPresent,
 		Resources: corev1.ResourceRequirements{
@@ -89,9 +91,20 @@ func BuildClientRegistrationContainer(clientID, name, namespace string) corev1.C
 		Command: []string{
 			"/bin/sh",
 			"-c",
-			"while [ ! -f /opt/jwt_svid.token ]; do echo waiting for SVID; sleep 1; done; python client_registration.py; tail -f /dev/null",
+			"if [ "$SPIRE_ENABLED" = "true" ]; then while [ ! -f /opt/jwt_svid.token ]; do echo waiting for SVID; sleep 1; done; fi; python client_registration.py; tail -f /dev/null",
 		},
 		Env: []corev1.EnvVar{
+			{
+				Name: "SPIRE_ENABLED",
+				ValueFrom: &corev1.EnvVarSource{
+					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: "environments",
+						},
+						Key: "SPIRE_ENABLED",
+					},
+				},
+			},
 			{
 				Name: "KEYCLOAK_URL",
 				ValueFrom: &corev1.EnvVarSource{
@@ -140,14 +153,6 @@ func BuildClientRegistrationContainer(clientID, name, namespace string) corev1.C
 			{
 				Name:  "CLIENT_NAME",
 				Value: clientId,
-			},
-			{
-				Name:  "CLIENT_ID",
-				Value: "spiffe://localtest.me/sa/" + name,
-			},
-			{
-				Name:  "NAMESPACE",
-				Value: namespace,
 			},
 		},
 		VolumeMounts: []corev1.VolumeMount{
