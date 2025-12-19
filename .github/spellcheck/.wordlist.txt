@@ -386,3 +386,5 @@ localtest
 ui
 keycloak
 AuthProxy
+Postgres
+OpenID
