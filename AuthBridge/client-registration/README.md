@@ -2,8 +2,15 @@
 
 `client-registration` is a container image designed to automatically register Kubernetes workloads as OAuth2/OpenID Connect clients in Keycloak. It may be used with SPIFFE/SPIRE to use the pod’s SPIFFE ID as the client identifier, simplifying secure service-to-service authentication and reducing manual configuration.
 
-* [Usage with SPIRE](#client-registration-with-spire)
-* [Usage without SPIRE](#client-registration-without-spire)
+When registering this pod with Keycloak as a Keycloak client this code uses the following as client name:
+
+- SPIFFE Id, when using SPIRE (e.g. `spiffe://localtest.me/ns/my-agent/sa/my-service-account` )
+- Value of `CLIENT_NAME` specified in pod env. variable
+
+See the instructions:
+
+- [Usage with SPIRE](#client-registration-with-spire)
+- [Usage without SPIRE](#client-registration-without-spire)
 
 ## Client Registration with SPIRE
 
@@ -61,25 +68,32 @@ Password: admin
 
 ### 7. Configure Your SPIFFE-Enabled Deployment
 
+Since we are currently using default SPIFFE ID composed of namespace and serviceAccount, we will create new values:
+
+```shell
+namespace=my-agent
+serviceAccount=my-service-account
+```
+
 Apply the example deployment:
 
 ```bash
 kubectl apply -f example_deployment_spiffe.yaml
 ```
 
-The example deployment, name `my-app`, will run BusyBox along with everything needed for automated client registration with Keycloak.
+The example deployment, name `my-app`, will run BusyBox in namespace `my-agent`, along with everything needed for automated client registration with Keycloak.
 
 ### 8. Verify Client Registration in Keycloak
 
 Wait for the client registration to complete.
 
 ```bash
-kubectl wait --for=condition=available --timeout=120s deployment/my-app
+kubectl -n my-agent wait --for=condition=available --timeout=120s deployment/my-app
 ```
 
 Log in to Keycloak and navigate to [Clients](http://keycloak.localtest.me:8080/admin/master/console/#/master/clients).
 
-Confirm a new client has been created; `Client ID` should be a SPIFFE ID and `Name` should be `my-app`.
+Confirm a new client has been created; `Client ID` should be a SPIFFE ID (e.g. `spiffe://localtest.me/ns/my-agent/sa/my-service-account`) and `Name` should be `my-app`.
 
 ![`my-app` client](images/clients_with_spire.png)
 
@@ -116,20 +130,27 @@ Password: admin
 
 ### 4. Configure Your Deployment
 
+Since we are not using SPIRE here, the client id will be the same as the value provided in the pod:
+
+```shell
+     - name: CLIENT_NAME
+       value: my-app
+```
+
 Apply the example deployment:
 
 ```bash
 kubectl apply -f example_deployment.yaml
 ```
 
-The example deployment, name `my-app`, will run BusyBox along with everything needed for automated client registration with Keycloak.
+The example deployment, name `my-app`, will run BusyBox in `my-agent` namespace along with everything needed for automated client registration with Keycloak.
 
 ### 5. Verify Client Registration in Keycloak
 
 Wait for the client registration to complete.
 
 ```bash
-kubectl wait --for=condition=available --timeout=120s deployment/my-app
+kubectl -n my-agent wait --for=condition=available --timeout=120s deployment/my-app
 ```
 
 Log in to Keycloak and navigate to [Clients](http://keycloak.localtest.me:8080/admin/master/console/#/master/clients).
