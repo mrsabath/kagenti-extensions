@@ -18,8 +18,12 @@ def get_or_create_user(keycloak_admin, username):
     if not user_id:
         user_id = keycloak_admin.create_user({
             "username": username,
-            "enabled": True
-        })
+            "enabled": True,
+            "email": f"{username}@test.com",
+            "emailVerified": True,
+            "firstName": username,
+            "lastName": username,
+        }, True)
         print(f"Created user '{username}'.")
     return user_id
 
@@ -167,7 +171,8 @@ except Exception as e:
 print("-" * 50)
 try:
     secret = keycloak_admin.get_client_secrets(app_caller_id)['value']
-    print(f"CLIENT SECRET for 'application-caller': {secret}")
+    print(f"Run the following command to set the client secret:")
+    print(f"export CLIENT_SECRET={secret}")
 except Exception as e:
     print(f"Could not retrieve secret: {e}")
 print("-" * 50)
