@@ -130,7 +130,7 @@ Password: admin
 
 ### 4. Configure Your Deployment
 
-Since we are not using SPIRE here, the client id will be the same as the value provide in pod:
+Since we are not using SPIRE here, the client id will be the same as the value provided in the pod:
 
 ```shell
      - name: CLIENT_NAME
