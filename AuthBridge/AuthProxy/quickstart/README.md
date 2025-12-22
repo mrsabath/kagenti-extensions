@@ -65,6 +65,8 @@ pip install -r requirements.txt
 python setup_keycloak.py
 ```
 
+This will spit out a command to export the `CLIENT_SECRET`. Run this command. 
+
 ## Step 4: Test the Flow
 
 First let's get the client secret:
@@ -72,7 +74,7 @@ First let's get the client secret:
 First, let's obtain an initial access token using the following command: 
 
 ```
-export ACCESS_TOKEN=$(curl -sX POST -H "Content-Type: application/x-www-form-urlencoded" -d "client_secret=$CLIENT_SECRET" -d "grant_type=password" -d "client_id=auth-proxy-caller" -d "username=admin" -d "password=admin" "http://keycloak.localtest.me:8080/realms/master/protocol/openid-connect/token" | jq -r ‘.access_token')
+export ACCESS_TOKEN=$(curl -sX POST -H "Content-Type: application/x-www-form-urlencoded" -d "client_secret=$CLIENT_SECRET" -d "grant_type=password" -d "client_id=auth-proxy-caller" -d "username=test-user" -d "password=password" "http://keycloak.localtest.me:8080/realms/demo/protocol/openid-connect/token" | jq -r ‘.access_token')
 ```
 
 Now we can access the application. Run:
