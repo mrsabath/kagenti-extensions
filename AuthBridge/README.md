@@ -1,6 +1,6 @@
 # AuthBridge Demo
 
-This demo combines the **Client Registration** and **AuthProxy** components to demonstrate a complete end-to-end authentication flow with SPIFFE/SPIRE integration.
+This demo combines the [**Client Registration**](./client-registration/) and [**AuthProxy**](./AuthProxy/) components to demonstrate a complete end-to-end authentication flow with [SPIFFE/SPIRE](https://spiffe.io) integration.
 
 ## Overview
 
