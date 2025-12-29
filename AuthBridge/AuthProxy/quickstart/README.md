@@ -13,7 +13,7 @@ The demo goes as follows:
 1. Test the flow
 
 ## Step 1: Install Kagenti
-First, we recommend to deploy Kagenti to a local Kind cluster with the Ansible installer. Instructions are available [here](https://github.com/kagenti/kagenti/blob/main/docs/install.md#ansible-based-installer-alternative). 
+First, we recommend to deploy Kagenti to a local Kind cluster with the Ansible installer. Instructions are available [here](https://github.com/kagenti/kagenti/blob/main/docs/install.md#ansible-based-installer-recommended). 
 
 This should start a local Kind cluster named `kagenti`. 
 
