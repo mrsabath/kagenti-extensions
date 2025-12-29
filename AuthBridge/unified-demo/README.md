@@ -13,13 +13,13 @@ This demo combines the **Client Registration** and **AuthProxy** components to d
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                                                        │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                      Containers                                 │   │
+│  │                      Containers                                  │   │
 │  │  ┌──────────────┐  ┌─────────────────┐  ┌────────────────────┐  │   │
-│  │  │   BusyBox    │  │  SPIFFE Helper  │  │    AuthProxy +     │  │   │
-│  │  │   (Caller)   │  │  (provides      │  │    Envoy + Go Proc │  │   │
+│  │  │   Caller     │  │  SPIFFE Helper  │  │    AuthProxy +     │  │   │
+│  │  │  (netshoot)  │  │  (provides      │  │    Envoy + Go Proc │  │   │
 │  │  │              │  │   SPIFFE creds) │  │  (token exchange)  │  │   │
 │  │  └──────┬───────┘  └─────────────────┘  └──────────┬─────────┘  │   │
-│  │                                                                 │   │
+│  │                                                                  │   │
 │  │  ┌───────────────────────────────────────────────────────────┐  │   │
 │  │  │ client-registration (registers with Keycloak using SPIFFE)│  │   │
 │  │  └───────────────────────────────────────────────────────────┘  │   │
@@ -42,8 +42,8 @@ This demo combines the **Client Registration** and **AuthProxy** components to d
 
 ### Token Flow
 
-1. **Client Registration** (init container) uses the **SPIFFE ID** to register the caller workload with Keycloak
-2. **BusyBox** (caller) obtains a token from Keycloak using the auto-registered client credentials
+1. **Client Registration** container uses the **SPIFFE ID** to register the caller workload with Keycloak
+2. **Caller** obtains a token from Keycloak using the auto-registered client credentials
 3. **AuthProxy + Envoy** (sidecar) intercepts the outgoing request and exchanges the token for one with audience `demoapp`
 4. **Demo App** (target server) validates the exchanged token
 
@@ -51,9 +51,9 @@ This demo combines the **Client Registration** and **AuthProxy** components to d
 
 | Container | Type | Purpose |
 |-----------|------|---------|
-| `proxy-init` | init | Sets up iptables to intercept outgoing traffic |
-| `client-registration` | container | Registers workload with Keycloak using SPIFFE ID (waits for SPIFFE Helper) |
-| `caller` (curl) | container | The application making requests |
+| `proxy-init` | init | Sets up iptables to intercept outgoing traffic (excludes port 8080 for Keycloak) |
+| `client-registration` | container | Registers workload with Keycloak using SPIFFE ID, saves credentials to `/shared/` |
+| `caller` (netshoot) | container | The application making requests (has curl and jq) |
 | `spiffe-helper` | container | Provides SPIFFE credentials (SVID) |
 | `auth-proxy` | container | Validates tokens |
 | `envoy-proxy` | container | Intercepts traffic and performs token exchange via go-processor |
@@ -67,13 +67,11 @@ This demo combines the **Client Registration** and **AuthProxy** components to d
 
 ### Quick Setup with Kagenti
 
-The easiest way to get all prerequisites is to use the [Kagenti Ansible installer](https://github.com/kagenti/kagenti/blob/main/docs/install.md#ansible-based-installer-recommended) and then follow the instructions below.
+The easiest way to get all prerequisites is to use the [Kagenti Ansible installer](https://github.com/kagenti/kagenti/blob/main/docs/install.md#ansible-based-installer-recommended).
 
-## Step-by-Step Guide
+## End-to-End Testing Guide
 
-### 1. Build and Load Images
-
-Navigate to the AuthProxy directory and build the required images:
+### Step 1: Build and Load Images
 
 ```bash
 cd AuthBridge/AuthProxy
@@ -85,36 +83,7 @@ make build-images
 make load-images
 ```
 
-### 2. Install SPIRE (if not using Kagenti install)
-
-```bash
-# Install SPIRE CRDs
-helm upgrade --install spire-crds spire-crds \
-  -n spire-mgmt \
-  --repo https://spiffe.github.io/helm-charts-hardened/ \
-  --create-namespace --wait
-
-# Install SPIRE
-helm upgrade --install spire spire \
-  -n spire-mgmt \
-  --repo https://spiffe.github.io/helm-charts-hardened/ \
-  -f https://raw.githubusercontent.com/kagenti/kagenti/main/kagenti/installer/app/resources/spire-helm-values.yaml
-```
-
-### 3. Install Keycloak (if not using Kagenti install)
-
-```bash
-# Create namespace
-kubectl apply -f "https://raw.githubusercontent.com/kagenti/kagenti/refs/heads/main/kagenti/installer/app/resources/keycloak-namespace.yaml"
-
-# Deploy Keycloak
-kubectl apply -f "https://raw.githubusercontent.com/kagenti/kagenti/refs/heads/main/kagenti/installer/app/resources/keycloak.yaml" -n keycloak
-
-# Wait for Keycloak to be ready
-kubectl rollout status statefulset/keycloak -n keycloak --timeout=120s
-```
-
-### 4. Configure Keycloak
+### Step 2: Configure Keycloak
 
 Port-forward Keycloak to access it locally:
 
@@ -139,37 +108,34 @@ pip install -r requirements.txt
 python setup_keycloak.py
 ```
 
-The script will:
-- Create the `demo` realm
-- Create the `authproxy` client (for token exchange)
-- Create audience scopes (`authproxy-aud`, `demoapp-aud`)
+The script creates:
+- `demo` realm
+- `authproxy` client (for token exchange)
+- `demoapp` client (token exchange target audience)
+- `authproxy-aud` scope (realm default - all clients get it)
+- `demoapp-aud` scope (for exchanged tokens)
 
-**Important:** Note the `authproxy` client secret from the output.
+**Important:** Copy the `authproxy` client secret from the output.
 
-### 5. Deploy the Unified Demo
-
-First, deploy the `auth-proxy-config` secret:
-
-```bash
-kubectl create -f k8s/auth-proxy-config.yaml
-```
-
-Then update this secret with the `authproxy` client secret obtained above in the Configure Keycloak step:
+### Step 3: Deploy the Secret
 
 ```bash
-# Replace AUTHPROXY_SECRET with the actual secret from setup_keycloak.py output
-kubectl patch secret auth-proxy-config -p '{"stringData":{"CLIENT_SECRET":"AUTHPROXY_SECRET"}}'
+# Create the auth-proxy-config secret
+kubectl apply -f k8s/auth-proxy-config.yaml
+
+# Update with the actual authproxy client secret from Step 2
+kubectl patch secret auth-proxy-config -p '{"stringData":{"CLIENT_SECRET":"YOUR_AUTHPROXY_SECRET"}}'
 ```
 
-You might need to configure ghcr secret for accessing images. Simply copy secret from Kagenti `team1` namespace to `default`:
+### Step 4: Configure Image Pull Secret (if needed)
+
+If using Kagenti, copy the ghcr secret:
 
 ```bash
-kubectl get secret ghcr-secret  -n team1 -o yaml | sed 's/namespace: source-ns/namespace: target-ns/' > ghcr-secret.yaml
-# replace the namespace to default
-kubectl create -f ghcr-secret.yaml
+kubectl get secret ghcr-secret -n team1 -o yaml | sed 's/namespace: team1/namespace: default/' | kubectl apply -f -
 ```
 
-Deploy the unified stack:
+### Step 5: Deploy the Demo
 
 ```bash
 # With SPIFFE (requires SPIRE)
@@ -179,58 +145,42 @@ kubectl apply -f k8s/unified-deployment.yaml
 kubectl apply -f k8s/unified-deployment-no-spiffe.yaml
 ```
 
-Wait for deployments to be ready:
+Wait for deployments:
 
 ```bash
-kubectl wait --for=condition=available --timeout=120s deployment/caller
+kubectl wait --for=condition=available --timeout=180s deployment/caller
 kubectl wait --for=condition=available --timeout=120s deployment/demo-app
 ```
 
-### 6. Test the Flow
-
-Exec into the caller pod and make a request:
+### Step 6: Test the Flow
 
 ```bash
 # Exec into the caller container
 kubectl exec -it deployment/caller -c caller -- sh
+```
 
-# Inside the container:
+Inside the container:
 
-# Read the auto-generated client secret and client id
-CLIENT_SECRET=$(cat /shared/client-secret.txt)
+```bash
+# Credentials are auto-populated by client-registration
 CLIENT_ID=$(cat /shared/client-id.txt)
-echo "Client secret: $CLIENT_SECRET"
-echo "Client id: $CLIENT_ID"
+CLIENT_SECRET=$(cat /shared/client-secret.txt)
 
+echo "Client ID: $CLIENT_ID"
+echo "Client Secret: $CLIENT_SECRET"
+
+# Get a token from Keycloak
 TOKEN=$(curl -sX POST http://keycloak-service.keycloak.svc:8080/realms/demo/protocol/openid-connect/token \
   -d 'grant_type=client_credentials' \
   -d "client_id=$CLIENT_ID" \
   -d "client_secret=$CLIENT_SECRET" | jq -r '.access_token')
 
-curl -H "Authorization: Bearer $TOKEN" http://demo-app-service:8081/test
-
-
-# Get the client ID (SPIFFE ID or "caller" for no-spiffe version)
-# For SPIFFE version, check Keycloak for the registered client ID
-
-
-# Get a token from Keycloak
-TOKEN=$(curl -sX POST \
-  http://keycloak-service.keycloak.svc:8080/realms/demo/protocol/openid-connect/token \
-  -d 'grant_type=client_credentials' \
-  -d 'client_id=caller' \
-  -d "client_secret=$CLIENT_SECRET" | jq -r '.access_token')
-
-TOKEN=$(curl -sX POST \
-  http://keycloak.keycloak.svc:8080/realms/demo/protocol/openid-connect/token \
-  -d 'grant_type=client_credentials' \
-  -d 'client_id=caller' \
-  -d "client_secret=$CLIENT_SECRET" | jq -r '.access_token')  
-
 echo "Token obtained!"
 
-# Call the demo-app through AuthProxy
-# The outgoing request will be intercepted by Envoy, which exchanges the token
+# Verify token audience (should be "authproxy")
+echo $TOKEN | cut -d'.' -f2 | base64 -d 2>/dev/null | jq '{aud, azp, scope}'
+
+# Call demo-app (AuthProxy will exchange token for "demoapp" audience)
 curl -H "Authorization: Bearer $TOKEN" http://demo-app-service:8081/test
 
 # Expected output: "authorized"
@@ -238,134 +188,99 @@ curl -H "Authorization: Bearer $TOKEN" http://demo-app-service:8081/test
 
 ## Verification
 
-### Verify SPIFFE Client Registration
-
-Check Keycloak for the auto-registered client:
-
-1. Go to http://keycloak.localtest.me:8080
-2. Login with `admin` / `admin`
-3. Switch to realm `demo`
-4. Navigate to **Clients**
-5. Look for a client with a SPIFFE ID as the Client ID (e.g., `spiffe://example.org/ns/default/sa/default`)
-
-### View Logs
+### Check Client Registration
 
 ```bash
-# Caller pod logs
-kubectl logs deployment/caller -c caller
-kubectl logs deployment/caller -c auth-proxy
-kubectl logs deployment/caller -c envoy-proxy
-kubectl logs deployment/caller -c spiffe-helper
-
-# Client registration logs (init container)
 kubectl logs deployment/caller -c client-registration
+```
 
-# Demo app logs
+You should see:
+```
+SPIFFE credentials ready!
+Client ID (SPIFFE ID): spiffe://...
+Created Keycloak client "spiffe://..."
+Client registration complete!
+```
+
+### Check Token Exchange
+
+```bash
+kubectl logs deployment/caller -c envoy-proxy 2>&1 | grep -i "token"
+```
+
+You should see:
+```
+[Token Exchange] All required headers present, attempting token exchange
+[Token Exchange] Successfully exchanged token
+[Token Exchange] Replacing token in Authorization header
+```
+
+### Check Demo App
+
+```bash
 kubectl logs deployment/demo-app
 ```
 
-### Test Invalid Scenarios
-
-From inside the caller container:
-
-```bash
-# Invalid token (should fail at demo-app)
-curl -H "Authorization: Bearer invalid-token" http://demo-app-service:8081/test
-# Expected: 401 Unauthorized
-
-# No authorization
-curl http://demo-app-service:8081/test
-# Expected: 401 Unauthorized
+You should see:
 ```
-
-## How It Works
-
-### 1. Client Registration (Init Container)
-
-When the caller pod starts:
-1. Waits for SPIFFE credentials from the SPIFFE Helper sidecar
-2. Reads the SVID JWT to extract the SPIFFE ID
-3. Registers with Keycloak using the SPIFFE ID as the client ID
-4. Writes the generated client secret to `/shared/client-secret.txt`
-
-### 2. AuthProxy Sidecar
-
-The AuthProxy runs alongside the caller application:
-- **proxy-init** sets up iptables to redirect outgoing traffic to Envoy
-- **Envoy** intercepts HTTP requests on port 15123
-- **go-processor** (external processor) performs token exchange:
-  - Extracts the Bearer token from the Authorization header
-  - Exchanges it with Keycloak for a new token with audience `demoapp`
-  - Replaces the Authorization header with the new token
-- The request continues to the original destination (demo-app)
-
-### 3. Demo App (Target Server)
-
-The demo app:
-- Validates the JWT token against Keycloak's JWKS
-- Checks that the issuer and audience claims match
-- Returns "authorized" for valid tokens
-
-## Cleanup
-
-```bash
-# Remove deployments
-kubectl delete -f k8s/unified-deployment.yaml
-# OR
-kubectl delete -f k8s/unified-deployment-no-spiffe.yaml
+[JWT Debug] Successfully validated token
+[JWT Debug] Audience: [demoapp]
+Authorized request: GET /test
 ```
 
 ## Troubleshooting
 
-### SPIFFE Helper Not Starting
+### Client Registration Can't Reach Keycloak
 
-Check if SPIRE agent is running:
+**Symptom:** `Connection refused` when connecting to Keycloak
+
+**Fix:** Ensure `OUTBOUND_PORTS_EXCLUDE: "8080"` is set in proxy-init env vars. This excludes Keycloak port from iptables redirect.
+
+### Token Exchange Fails with "Audience not found"
+
+**Symptom:** `{"error":"invalid_client","error_description":"Audience not found"}`
+
+**Fix:** The `demoapp` client must exist in Keycloak. Run `setup_keycloak.py` which creates it.
+
+### Token Exchange Fails with "Client not enabled to retrieve service account"
+
+**Symptom:** `{"error":"unauthorized_client","error_description":"Client not enabled to retrieve service account"}`
+
+**Fix:** The caller's client needs `serviceAccountsEnabled: true`. This is set in the updated `client_registration.py`.
+
+### curl/jq Not Found in Caller Container
+
+**Symptom:** `sh: curl: not found` or `sh: jq: not found`
+
+**Fix:** The caller container should use `nicolaka/netshoot:latest` image which has these tools pre-installed.
+
+### View All Logs
+
 ```bash
-kubectl get pods -n spire-mgmt
-```
-
-Verify the agent socket path:
-```bash
-kubectl exec -it deployment/caller -c spiffe-helper -- ls -la /spiffe-workload-api/
-```
-
-### Client Registration Fails
-
-Check the init container logs:
-```bash
+# Caller pod containers
+kubectl logs deployment/caller -c caller
 kubectl logs deployment/caller -c client-registration
-```
-
-Verify Keycloak connectivity from within the cluster:
-```bash
-kubectl run test-curl --rm -it --image=curlimages/curl -- \
-  curl -s http://keycloak.keycloak.svc:8080/realms/demo/.well-known/openid-configuration
-```
-
-### Token Exchange Fails
-
-Check the envoy-proxy logs:
-```bash
+kubectl logs deployment/caller -c spiffe-helper
+kubectl logs deployment/caller -c auth-proxy
 kubectl logs deployment/caller -c envoy-proxy
+
+# Demo app
+kubectl logs deployment/demo-app
 ```
 
-Verify the auth-proxy-config secret has the correct values:
-```bash
-kubectl get secret auth-proxy-config -o yaml
-```
+## Cleanup
 
-### Demo App Rejects Token
-
-Check that the token has the correct audience:
 ```bash
-# Decode the token (inside caller container)
-echo $TOKEN | cut -d'.' -f2 | base64 -d 2>/dev/null | jq .
-# Look for "aud": ["demoapp", ...]
+kubectl delete -f k8s/unified-deployment.yaml
+# OR
+kubectl delete -f k8s/unified-deployment-no-spiffe.yaml
+
+kubectl delete -f k8s/auth-proxy-config.yaml
 ```
 
 ## References
 
-- [AuthBridge Client Registration](../../../client-registration/README.md)
-- [AuthProxy Quickstart](../README.md)
+- [AuthBridge Client Registration](../client-registration/README.md)
+- [AuthProxy](../AuthProxy/README.md)
 - [Kagenti Installation](https://github.com/kagenti/kagenti/blob/main/docs/install.md)
 - [SPIRE Documentation](https://spiffe.io/docs/latest/)

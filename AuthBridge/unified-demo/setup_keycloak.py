@@ -19,6 +19,7 @@ Architecture:
 
 Clients created:
 - authproxy: Used by AuthProxy to exchange tokens for demo-app access
+- demoapp: Target audience for token exchange (required by Keycloak)
 
 Client Scopes created:
 - authproxy-aud: Adds "authproxy" to token audience
@@ -159,6 +160,21 @@ def main():
         }
     })
     
+    # Create demoapp client (required as token exchange audience target)
+    print("\n--- Creating demoapp client ---")
+    print("This client is required as the target audience for token exchange")
+    demoapp_id = get_or_create_client(keycloak_admin, {
+        "clientId": "demoapp",
+        "name": "Demo App",
+        "enabled": True,
+        "publicClient": False,
+        "standardFlowEnabled": False,
+        "serviceAccountsEnabled": True,
+        "attributes": {
+            "standard.token.exchange.enabled": "true"
+        }
+    })
+    
     # Create client scopes
     print("\n--- Creating client scopes ---")
     
@@ -205,6 +221,13 @@ def main():
     except Exception as e:
         print(f"Note: Could not assign 'demoapp-aud' scope (might already exist): {e}")
     
+    # demoapp also gets demoapp-aud (so tokens for demoapp have correct audience)
+    try:
+        keycloak_admin.add_client_default_client_scope(demoapp_id, demoapp_scope_id, {})
+        print("Assigned 'demoapp-aud' as default scope to 'demoapp'.")
+    except Exception as e:
+        print(f"Note: Could not assign 'demoapp-aud' scope to demoapp (might already exist): {e}")
+    
     # Retrieve and display secrets
     print("\n" + "=" * 60)
     print("SETUP COMPLETE")
@@ -238,15 +261,15 @@ def main():
         print("""
    kubectl exec -it deployment/caller -c caller -- sh
    
-   # Inside the container:
+   # Inside the container (credentials are auto-populated):
+   CLIENT_ID=$(cat /shared/client-id.txt)
    CLIENT_SECRET=$(cat /shared/client-secret.txt)
    
-   # For no-spiffe version, client_id is 'caller'
-   # For spiffe version, check Keycloak for the registered SPIFFE ID
+   # Get a token
    TOKEN=$(curl -sX POST \\
      http://keycloak-service.keycloak.svc:8080/realms/demo/protocol/openid-connect/token \\
      -d 'grant_type=client_credentials' \\
-     -d 'client_id=caller' \\
+     -d "client_id=$CLIENT_ID" \\
      -d "client_secret=$CLIENT_SECRET" | jq -r '.access_token')
    
    # Call demo-app (AuthProxy will exchange the token)
@@ -255,7 +278,8 @@ def main():
 """)
         
         print("\nNote: The caller client is auto-registered by the client-registration")
-        print("init container. For SPIFFE version, it uses the SPIFFE ID as client ID.")
+        print("container. For SPIFFE version, it uses the SPIFFE ID as client ID.")
+        print("The client ID and secret are saved to /shared/client-id.txt and /shared/client-secret.txt.")
         
     except Exception as e:
         print(f"Could not retrieve secrets: {e}")
