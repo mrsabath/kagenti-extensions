@@ -13,11 +13,11 @@ If the Caller wants to pass the same token to a different service, the request w
 a different audience.
 
 ```cmd
-┌─────────────┐                      ┌─────────────┐
-│   Caller    │ ── Token A ──────────│   Target    │  ❌ REJECTED
-│ (aud: svc-a)│    (aud: svc-a ).    │ (expects    │     Wrong audience!
-└─────────────┘                      │  aud: svc-b)│
-                                     └─────────────┘
+┌─────────────┐                      ┌──────────────┐
+│   Caller    │ ── Token A ────────► │   Target     │  ❌ REJECTED
+│ (aud: svc-a)│                      │ (expects     │     Wrong audience!
+└─────────────┘                      │  aud: target)│
+                                     └──────────────┘
 ```
 
 ### The Solution
@@ -26,10 +26,10 @@ AuthProxy intercepts outgoing requests, validates the caller's token, and exchan
 
 ```cmd
 ┌─────────────┐               ┌──────────────────────────┐              ┌─────────────┐
-│   Caller    │ --Token A ──► │       AuthProxy          │ -Token B ──► │   Target    │  ✅ AUTHORIZED
+│   Caller    │ ── Token A ──►│       AuthProxy          │- Token B ──► │   Target    │  ✅ AUTHORIZED
 │             │               │  1. Validate token       │              │             │
-│ Token:      │               │  2. Exchange for new aud │              │ Expects:    │
-│ (aud: svc-a)│               |  3. Forward request      │              │ aud=target  │
+│ Token:      │               │  2. Exchange for new aud │              │ (expects    │
+│ (aud: svc-a)│               |  3. Forward request      │              │ aud: target)│
 └─────────────┘               └──────────────────────────┘              └─────────────┘
                                            │
                                            ▼
