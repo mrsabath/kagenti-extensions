@@ -226,7 +226,7 @@ flowchart TB
     Step2["2️⃣ Client Registration registers Agent<br/>as Keycloak client (SPIFFE ID)"]
     Step3["3️⃣ Agent gets token from Keycloak<br/>(aud: agent's SPIFFE ID)"]
     Step4["4️⃣ Agent sends request to Tool<br/>with token"]
-    Step5["5️⃣ Envoy + Ext Proc exchanges token<br/>(aud: tool's audience)"]
+    Step5["5️⃣ AuthProxy exchanges token<br/>(aud: tool's audience)"]
     Step6["6️⃣ Tool validates token<br/>and executes action"]
     
     Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6
@@ -250,29 +250,29 @@ sequenceDiagram
     participant SPIRE as SPIRE Agent
     participant Helper as SPIFFE Helper
     participant Reg as Client Registration
-    participant Agent as Agent Container
-    participant Envoy as Envoy + Ext Proc
+    participant Agent as Slack Research Agent
+    participant Proxy as AuthProxy (Envoy)
     participant KC as Keycloak
-    participant Tool as Auth Target (Tool)
+    participant Tool as Slack Tool
 
-    Note over Helper,SPIRE: Agent Pod Initialization (Automatic)
+    Note over Helper,SPIRE: Agent Pod Initialization
     SPIRE->>Helper: Issue JWT SVID
     Helper->>Reg: JWT with SPIFFE ID
-    Reg->>KC: Register client (spiffe://...agent)
-    KC-->>Reg: Client credentials (saved to /shared/)
+    Reg->>KC: Register client (spiffe://...slack-researcher)
+    KC-->>Reg: Client credentials
 
     Note over Agent,Tool: Agent → Tool Request Flow
     Agent->>KC: Get token (client_credentials)
     KC-->>Agent: Token (aud: agent's SPIFFE ID)
     
-    Agent->>Envoy: Request to Tool + Token
-    Note over Envoy: Intercepts traffic - validates & exchanges
+    Agent->>Proxy: Request to Slack Tool + Token
+    Note over Proxy: Transparent proxy - validates & exchanges
     
-    Envoy->>KC: Token Exchange (RFC 8693)
-    KC-->>Envoy: New Token (aud: auth-target)
+    Proxy->>KC: Token Exchange (RFC 8693)
+    KC-->>Proxy: New Token (aud: slack-tool)
     
-    Envoy->>Tool: Request + Exchanged Token
-    Tool->>Tool: Validate token (aud: auth-target) ✓
+    Proxy->>Tool: Request + Exchanged Token
+    Tool->>Tool: Validate token (aud: slack-tool) ✓
     Tool-->>Agent: Execute action & return result
 ```
 
@@ -366,16 +366,15 @@ flowchart TB
 
 ### Component 2: AuthProxy for Tool Access
 
-When an agent calls a tool, the AuthProxy sidecar (Envoy + Ext Proc) transparently exchanges the agent's token for one the tool will accept:
+When an agent calls a tool, the AuthProxy sidecar transparently exchanges the agent's token for one the tool will accept:
 
 ```
 ┌─────────────────┐               ┌────────────────────────┐              ┌─────────────────┐
-│     Agent       │ ── Token A ──►│    Envoy + Ext Proc    │── Token B ──►│   Auth Target   │ ✅
-│   Container     │               │  1. Intercept request  │              │    (Tool)       │
-│                 │               │  2. Exchange token     │              │                 │
-│ Token:          │               │  3. Forward request    │              │ (expects        │
-│ (aud: agent's   │               │                        │              │  aud: auth-     │
-│  SPIFFE ID)     │               │                        │              │  target)        │
+│ Slack Research  │ ── Token A ──►│      AuthProxy         │── Token B ──►│   Slack Tool    │ ✅
+│    Agent        │               │  1. Validate agent     │              │                 │
+│                 │               │  2. Exchange for tool  │              │ (expects        │
+│ Token:          │               │  3. Forward request    │              │  aud: slack-tool│
+│ (aud: agent)    │               │                        │              │                 │
 └─────────────────┘               └────────────────────────┘              └─────────────────┘
                                             │
                                             ▼ Token Exchange (RFC 8693)
@@ -390,16 +389,16 @@ When an agent calls a tool, the AuthProxy sidecar (Envoy + Ext Proc) transparent
 ```mermaid
 flowchart LR
     subgraph AgentPod["Agent Pod"]
-        Agent["🤖 Agent Container<br/>(aud: agent's SPIFFE ID)"]
-        Proxy["🔄 Envoy + Ext Proc<br/>1. Intercept<br/>2. Exchange<br/>3. Forward"]
+        Agent["🤖 Slack Research<br/>Agent<br/>(aud: agent)"]
+        Proxy["🔄 AuthProxy<br/>1. Validate<br/>2. Exchange<br/>3. Forward"]
     end
     
     KC["🔑 Keycloak"]
-    Tool["🔧 Auth Target<br/>(expects aud: auth-target)"]
+    Tool["🔧 Slack Tool<br/>(expects aud: slack-tool)"]
     
-    Agent -->|"Token A<br/>(aud: SPIFFE ID)"| Proxy
+    Agent -->|"Token A<br/>(aud: agent)"| Proxy
     Proxy -->|"Token Exchange<br/>(RFC 8693)"| KC
-    KC -->|"Token B<br/>(aud: auth-target)"| Proxy
+    KC -->|"Token B<br/>(aud: slack-tool)"| Proxy
     Proxy -->|"Token B"| Tool
     Tool -->|"✅ Result"| Agent
     
@@ -476,7 +475,7 @@ Every step in the agent-tool chain is verified:
 
 1. **SPIRE verifies** the agent workload's identity
 2. **Keycloak verifies** the agent's credentials during token request
-3. **Envoy validates** the agent's token before exchange
+3. **AuthProxy verifies** the agent's token before exchange
 4. **Keycloak verifies** the exchange is authorized
 5. **Tool verifies** the exchanged token before execution
 
@@ -562,7 +561,13 @@ make build-images
 make load-images
 ```
 
-#### 2. Configure Keycloak
+#### 2. Create Namespace and Configuration
+
+```bash
+kubectl apply -f k8s/auth-proxy-config.yaml
+```
+
+#### 3. Configure Keycloak
 
 ```bash
 # Port-forward Keycloak
