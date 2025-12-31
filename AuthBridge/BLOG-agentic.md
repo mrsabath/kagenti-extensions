@@ -255,7 +255,7 @@ sequenceDiagram
     participant KC as Keycloak
     participant Tool as Slack Tool
 
-    Note over Helper,SPIRE: Agent Pod Initialization
+    Note over Helper,SPIRE: Agent Pod Initialization (Automatic)
     SPIRE->>Helper: Issue JWT SVID
     Helper->>Reg: JWT with SPIFFE ID
     Reg->>KC: Register client (spiffe://...slack-researcher)
@@ -600,7 +600,11 @@ kubectl wait --for=condition=available --timeout=120s deployment/auth-target -n 
 #### 4. Test Agent → Tool Flow
 
 ```bash
+<<<<<<< HEAD
 kubectl exec deployment/agent -n authbridge -c agent -- sh -c '
+=======
+kubectl exec deployment/caller -n authbridge -c caller -- sh -c '
+>>>>>>> 46cc465 (Add developer focus)
 # Agent credentials (auto-populated by sidecars!)
 CLIENT_ID=$(cat /shared/client-id.txt)
 CLIENT_SECRET=$(cat /shared/client-secret.txt)
@@ -843,3 +847,7 @@ The result: AI agents can securely access tools without static credentials, over
 ---
 
 *AuthBridge is part of the [Kagenti Agentic Platform](https://github.com/kagenti/kagenti), providing zero-trust identity and authorization infrastructure for AI agents—so developers can focus on building agents, not managing credentials.*
+<<<<<<< HEAD
+=======
+
+>>>>>>> 46cc465 (Add developer focus)
