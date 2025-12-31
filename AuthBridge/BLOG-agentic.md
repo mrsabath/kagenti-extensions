@@ -1,6 +1,6 @@
 # AuthBridge: Securing Agent-to-Tool Communication in AI Agentic Platforms
 
-*How Kagenti enables zero-trust authentication for AI agents accessing external tools and services*
+*How Kagenti enables zero-trust authentication for AI agents—so developers can focus on building agents, not managing credentials*
 
 ---
 
@@ -59,6 +59,140 @@ Traditional approaches—static API keys, shared secrets, long-lived tokens—cr
 | **Transparent Token Exchange** | Agent tokens are automatically exchanged for tool-specific audiences |
 | **Least Privilege** | Tools receive only the permissions the agent is authorized for |
 | **Audit Trail** | Every agent-tool interaction is traceable through the identity chain |
+
+---
+
+## 🎯 Developer Experience: Focus on Your Agent, Not Identity
+
+One of the most powerful aspects of AuthBridge is what it **removes** from an agent developer's concerns.
+
+### The Problem for Developers
+
+Without AuthBridge, agent developers must:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Agent Developer's Security Burden (Without AuthBridge)                     │
+│                                                                             │
+│  ❌ Obtain and manage API keys for each tool                                │
+│  ❌ Implement token refresh logic                                           │
+│  ❌ Handle credential rotation                                              │
+│  ❌ Build token exchange code for each target service                       │
+│  ❌ Manage secrets securely (don't hardcode, use vaults, etc.)              │
+│  ❌ Understand OAuth2/OIDC protocols                                        │
+│  ❌ Debug authentication failures across multiple services                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### The AuthBridge Solution
+
+With AuthBridge, all identity and authentication concerns are handled by **sidecars**—completely transparent to the agent code:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Agent Developer's Focus (With AuthBridge)                                  │
+│                                                                             │
+│  ✅ Write agent logic and LLM interactions                                  │
+│  ✅ Define which tools the agent needs to call                              │
+│  ✅ Focus on business value, not plumbing                                   │
+│                                                                             │
+│  Identity? Handled by sidecars.                                             │
+│  Token exchange? Handled by sidecars.                                       │
+│  Credential rotation? Handled by sidecars.                                  │
+│  Audience transformation? Handled by sidecars.                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+<details>
+<summary><b>📊 Mermaid Comparison Diagram</b></summary>
+
+```mermaid
+flowchart TB
+    subgraph Without["❌ Without AuthBridge"]
+        direction TB
+        W1["Agent Developer"]
+        W2["Write agent logic"]
+        W3["Manage API keys"]
+        W4["Implement token refresh"]
+        W5["Handle credential rotation"]
+        W6["Build token exchange"]
+        W7["Debug auth failures"]
+        
+        W1 --> W2
+        W1 --> W3
+        W1 --> W4
+        W1 --> W5
+        W1 --> W6
+        W1 --> W7
+    end
+    
+    subgraph With["✅ With AuthBridge"]
+        direction TB
+        A1["Agent Developer"]
+        A2["Write agent logic"]
+        A3["Define tool calls"]
+        A4["Ship to production"]
+        
+        Sidecar["🔐 Sidecars handle:<br/>• Identity<br/>• Tokens<br/>• Exchange<br/>• Rotation"]
+        
+        A1 --> A2
+        A1 --> A3
+        A1 --> A4
+    end
+    
+    style Without fill:#ffebee
+    style With fill:#e8f5e9
+    style Sidecar fill:#fff3e0
+```
+
+</details>
+
+### What This Means in Practice
+
+**Agent code WITHOUT AuthBridge:**
+```python
+# Developer must handle all of this 😰
+class SlackAgent:
+    def __init__(self):
+        self.client_id = os.getenv("SLACK_CLIENT_ID")
+        self.client_secret = os.getenv("SLACK_CLIENT_SECRET")
+        self.token = None
+        self.token_expiry = None
+    
+    def get_token(self):
+        if self.token_expiry and time.time() < self.token_expiry:
+            return self.token
+        # Refresh token logic...
+        response = requests.post(TOKEN_URL, data={...})
+        self.token = response.json()["access_token"]
+        self.token_expiry = time.time() + response.json()["expires_in"]
+        return self.token
+    
+    def call_slack_tool(self, action):
+        token = self.get_token()
+        # Exchange token for Slack audience...
+        exchanged_token = self.exchange_token(token, "slack-tool")
+        return requests.get(SLACK_TOOL_URL, 
+                          headers={"Authorization": f"Bearer {exchanged_token}"})
+```
+
+**Agent code WITH AuthBridge:**
+```python
+# Developer focuses on agent logic 😊
+class SlackAgent:
+    def call_slack_tool(self, action):
+        # Just make the call - sidecars handle everything!
+        return requests.get(SLACK_TOOL_URL, 
+                          headers={"Authorization": f"Bearer {self.token}"})
+```
+
+The agent developer:
+- **Doesn't need to know** how tokens are obtained
+- **Doesn't need to implement** token refresh
+- **Doesn't need to understand** audience transformation
+- **Doesn't need to manage** credentials
+
+All of this is handled automatically by the AuthBridge sidecars.
 
 ---
 
@@ -121,7 +255,7 @@ sequenceDiagram
     participant KC as Keycloak
     participant Tool as Slack Tool
 
-    Note over Helper,SPIRE: Agent Pod Initialization
+    Note over Helper,SPIRE: Agent Pod Initialization (Automatic)
     SPIRE->>Helper: Issue JWT SVID
     Helper->>Reg: JWT with SPIFFE ID
     Reg->>KC: Register client (spiffe://...slack-researcher)
@@ -265,133 +399,6 @@ flowchart LR
 - ✅ **Proper audience scoping** - Each tool receives tokens specifically for it
 - ✅ **Least privilege** - Agents can only access tools they're authorized for
 - ✅ **Standards-based** - Uses OAuth 2.0 Token Exchange (RFC 8693)
-
----
-
-## Real-World Example: Slack Research Agent
-
-Let's walk through a concrete example of how the Slack Research Agent accesses the Slack Tool:
-
-### Architecture
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                    SLACK RESEARCH AGENT POD                            │
-│                    (ns: team, sa: slack-researcher)                    │
-│                                                                        │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                      Containers                                 │   │
-│  │  ┌──────────────┐  ┌─────────────────┐  ┌────────────────────┐  │   │
-│  │  │   Agent      │  │  SPIFFE Helper  │  │    AuthProxy +     │  │   │
-│  │  │  (LLM logic) │  │  (identity)     │  │    Envoy + Go Proc │  │   │
-│  │  └──────────────┘  └─────────────────┘  └────────────────────┘  │   │
-│  │                                                                 │   │
-│  │  ┌──────────────────────────────────────────────────────────┐   │   │
-│  │  │ client-registration                                      │   │   │
-│  │  │ (registers: spiffe://localtest.me/ns/team/sa/slack-...)  │   │   │
-│  │  └──────────────────────────────────────────────────────────┘   │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                              │                                         │
-└──────────────────────────────┼─────────────────────────────────────────┘
-                               │ Token exchanged for slack-tool audience
-                               ▼
-                    ┌─────────────────────┐
-                    │   SLACK TOOL POD    │
-                    │   (ns: team,        │
-                    │    sa: slack-tool)  │
-                    │                     │
-                    │  Validates token    │
-                    │  aud: slack-tool    │
-                    │  Calls Slack API    │
-                    └─────────────────────┘
-```
-
-<details>
-<summary><b>📊 Mermaid Architecture Diagram</b></summary>
-
-```mermaid
-flowchart TB
-    subgraph AgentPod["🤖 SLACK RESEARCH AGENT POD<br/>(ns: team, sa: slack-researcher)"]
-        subgraph Containers["Containers"]
-            Agent["🧠 Agent<br/>(LLM logic)"]
-            Helper["🔐 SPIFFE Helper"]
-            ClientReg["📝 client-registration"]
-            subgraph Sidecar["AuthProxy Sidecar"]
-                AuthProxy["🛡️ auth-proxy"]
-                Envoy["🔄 envoy-proxy"]
-                GoProc["⚙️ go-processor"]
-            end
-        end
-    end
-    
-    subgraph ToolPod["🔧 SLACK TOOL POD<br/>(ns: team, sa: slack-tool)"]
-        Tool["Slack Tool<br/>- Validates token<br/>- Calls Slack API"]
-    end
-    
-    subgraph External["🌐 External"]
-        SPIRE["🛡️ SPIRE"]
-        KC["🔑 Keycloak"]
-        Slack["💬 Slack API"]
-    end
-    
-    SPIRE --> Helper
-    Helper --> ClientReg
-    ClientReg --> KC
-    Agent --> Envoy
-    Envoy --> GoProc
-    GoProc -->|"Exchange"| KC
-    Envoy -->|"aud: slack-tool"| Tool
-    Tool --> Slack
-    Tool -->|"Result"| Agent
-    
-    style AgentPod fill:#e1f5fe
-    style ToolPod fill:#e8f5e9
-    style External fill:#fce4ec
-```
-
-</details>
-
-### Token Transformation
-
-| Claim | Agent's Original Token | After Exchange (for Tool) |
-|-------|------------------------|---------------------------|
-| `aud` | `account` | `slack-tool` |
-| `azp` | `spiffe://localtest.me/ns/team/sa/slack-researcher` | `authproxy` |
-| `scope` | `profile email` | `slack-tool-aud` |
-| `sub` | Agent's service account ID | Agent's service account ID |
-
-<details>
-<summary><b>📊 Mermaid Token Transformation Diagram</b></summary>
-
-```mermaid
-flowchart LR
-    subgraph Before["🎫 Agent's Token"]
-        B_aud["aud: account"]
-        B_azp["azp: spiffe://...slack-researcher"]
-        B_scope["scope: profile email"]
-    end
-    
-    Exchange["🔄 Token<br/>Exchange"]
-    
-    subgraph After["🎫 Token for Tool"]
-        A_aud["aud: slack-tool"]
-        A_azp["azp: authproxy"]
-        A_scope["scope: slack-tool-aud"]
-    end
-    
-    Before --> Exchange --> After
-    
-    style Before fill:#e3f2fd
-    style After fill:#e8f5e9
-    style Exchange fill:#fff3e0
-```
-
-</details>
-
-The **Slack Tool** can now verify:
-1. ✅ The token is intended for it (`aud: slack-tool`)
-2. ✅ The request originated from the Slack Research Agent (via claims chain)
-3. ✅ The token was issued by the trusted Keycloak instance
 
 ---
 
@@ -565,7 +572,7 @@ kubectl apply -f k8s/authbridge-deployment.yaml
 
 ```bash
 kubectl exec deployment/caller -n authbridge -c caller -- sh -c '
-# Agent credentials (auto-populated)
+# Agent credentials (auto-populated by sidecars!)
 CLIENT_ID=$(cat /shared/client-id.txt)
 CLIENT_SECRET=$(cat /shared/client-secret.txt)
 
@@ -598,32 +605,6 @@ Calling tool (token exchange happens transparently)...
 authorized
 ```
 
-### Verification
-
-#### Check Token Exchange Logs
-
-```bash
-kubectl logs deployment/caller -n authbridge -c envoy-proxy 2>&1 | grep -i "token"
-```
-
-**Expected:**
-```
-[Token Exchange] Successfully exchanged token
-[Token Exchange] Replacing token in Authorization header
-```
-
-#### Check Tool Validation
-
-```bash
-kubectl logs deployment/auth-target -n authbridge | grep "JWT Debug"
-```
-
-**Expected:**
-```
-[JWT Debug] Successfully validated token
-[JWT Debug] Audience: [auth-target]
-```
-
 ---
 
 ## Comparison: Traditional vs AuthBridge for Agents
@@ -637,6 +618,7 @@ kubectl logs deployment/auth-target -n authbridge | grep "JWT Debug"
 | **Audit Trail** | Limited visibility | Full identity chain |
 | **Credential Rotation** | Manual, error-prone | Automatic (short-lived SVIDs) |
 | **Scaling** | Operational burden | Automatic with pod lifecycle |
+| **Developer Burden** | Must handle auth logic | Focus on agent logic only |
 
 <details>
 <summary><b>📊 Mermaid Comparison Diagram</b></summary>
@@ -648,9 +630,10 @@ flowchart TB
         T1["👤 Admin provisions<br/>API keys per agent"]
         T2["🔑 Shared secrets<br/>across tools"]
         T3["🤖 Agent has<br/>over-privileged access"]
-        T4["❓ No audit trail<br/>of which agent called what"]
+        T4["👨‍💻 Developer manages<br/>auth code"]
+        T5["❓ No audit trail"]
         
-        T1 --> T2 --> T3 --> T4
+        T1 --> T2 --> T3 --> T4 --> T5
     end
     
     subgraph AuthBridge["✅ With AuthBridge"]
@@ -658,9 +641,10 @@ flowchart TB
         A1["🚀 Agent self-registers<br/>with SPIFFE ID"]
         A2["🔐 Unique token<br/>per tool call"]
         A3["🎯 Least privilege<br/>per interaction"]
-        A4["📋 Complete audit trail<br/>with identity chain"]
+        A4["👨‍💻 Developer focuses<br/>on agent logic"]
+        A5["📋 Complete audit trail"]
         
-        A1 --> A2 --> A3 --> A4
+        A1 --> A2 --> A3 --> A4 --> A5
     end
     
     style Traditional fill:#ffebee
@@ -671,96 +655,15 @@ flowchart TB
 
 ---
 
-## Integration with Kagenti Platform
-
-AuthBridge integrates seamlessly with the broader Kagenti ecosystem:
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         KAGENTI AGENTIC PLATFORM                            │
-│                                                                             │
-│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌─────────────────┐  │
-│  │   Agents    │   │AuthBridge   │   │    Tools    │   │   MCP Gateway   │  │
-│  │             │   │             │   │             │   │                 │  │
-│  │ • Slack     │◄──┤ • Client    ├──►│ • Slack     │◄──┤ • Protocol      │  │
-│  │   Researcher│   │   Reg       │   │   Tool      │   │   Translation   │  │
-│  │ • GitHub    │   │ • AuthProxy │   │ • GitHub    │   │ • Auth Filter   │  │
-│  │   Agent     │   │             │   │   Tool      │   │ • Rate Limiting │  │
-│  │ • Weather   │   │             │   │ • Weather   │   │                 │  │
-│  │   Service   │   │             │   │   Tool      │   │                 │  │
-│  └─────────────┘   └──────┬──────┘   └─────────────┘   └─────────────────┘  │
-│                           │                                                 │
-│  ┌────────────────────────┼────────────────────────────────────────────────┐│
-│  │                 IDENTITY INFRASTRUCTURE                                 ││
-│  │  ┌─────────────┐   ┌───┴───────┐   ┌─────────────┐                      ││
-│  │  │   SPIRE     │   │ Keycloak  │   │  Kubernetes │                      ││
-│  │  │  (SPIFFE)   │◄──┤  (OAuth2) │──►│    RBAC     │                      ││
-│  │  └─────────────┘   └───────────┘   └─────────────┘                      ││
-│  └─────────────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-<details>
-<summary><b>📊 Mermaid Platform Integration Diagram</b></summary>
-
-```mermaid
-flowchart TB
-    subgraph Platform["KAGENTI AGENTIC PLATFORM"]
-        subgraph Agents["🤖 Agents"]
-            A1["Slack Researcher"]
-            A2["GitHub Agent"]
-            A3["Weather Service"]
-        end
-        
-        subgraph AuthBridge["🔐 AuthBridge"]
-            CR["Client Registration"]
-            AP["AuthProxy"]
-        end
-        
-        subgraph Tools["🔧 Tools"]
-            T1["Slack Tool"]
-            T2["GitHub Tool"]
-            T3["Weather Tool"]
-        end
-        
-        subgraph Gateway["🚪 MCP Gateway"]
-            Proto["Protocol Translation"]
-            Auth["Auth Filter"]
-        end
-        
-        subgraph Identity["🛡️ Identity Infrastructure"]
-            SPIRE["SPIRE (SPIFFE)"]
-            KC["Keycloak (OAuth2)"]
-            RBAC["K8s RBAC"]
-        end
-    end
-    
-    Agents --> AuthBridge
-    AuthBridge --> Tools
-    Tools --> Gateway
-    AuthBridge --> Identity
-    Gateway --> Identity
-    
-    style Platform fill:#fafafa
-    style Agents fill:#e3f2fd
-    style AuthBridge fill:#fff3e0
-    style Tools fill:#e8f5e9
-    style Gateway fill:#f3e5f5
-    style Identity fill:#fce4ec
-```
-
-</details>
-
----
-
 ## Conclusion
 
-In the age of AI agents, security can't be an afterthought. AuthBridge brings zero-trust principles to agent-tool communication:
+In the age of AI agents, security can't be an afterthought—but it also shouldn't be a developer's burden. AuthBridge brings zero-trust principles to agent-tool communication while keeping the complexity hidden from agent developers:
 
 1. **Machine Identity** - Agents get cryptographic identities from SPIFFE/SPIRE
 2. **Self-Registration** - Agents register as OAuth2 clients automatically
 3. **Secure Delegation** - Token exchange ensures least-privilege access to tools
 4. **Continuous Verification** - Every step in the chain is authenticated
+5. **Developer Freedom** - Agent developers focus on building agents, not managing credentials
 
 <details>
 <summary><b>📊 Mermaid Summary Diagram</b></summary>
@@ -785,23 +688,23 @@ flowchart LR
         D1 --> D2
     end
     
-    subgraph Verification["4️⃣ Continuous Verification"]
-        V1["Every step<br/>authenticated"]
-        V2["Complete<br/>audit trail"]
-        V1 --> V2
+    subgraph Developer["4️⃣ Developer Focus"]
+        Dev1["Agent Logic"]
+        Dev2["Not Auth Code"]
+        Dev1 --> Dev2
     end
     
-    Identity --> Registration --> Delegation --> Verification
+    Identity --> Registration --> Delegation --> Developer
     
     style Identity fill:#e3f2fd
     style Registration fill:#e8f5e9
     style Delegation fill:#fff3e0
-    style Verification fill:#fce4ec
+    style Developer fill:#fce4ec
 ```
 
 </details>
 
-The result: AI agents can securely access tools without static credentials, over-privileged tokens, or manual credential management—enabling truly autonomous, secure agentic systems.
+The result: AI agents can securely access tools without static credentials, over-privileged tokens, or manual credential management—and agent developers can focus on what they do best: **building intelligent agents**.
 
 ---
 
@@ -815,5 +718,5 @@ The result: AI agents can securely access tools without static credentials, over
 
 ---
 
-*AuthBridge is part of the [Kagenti Agentic Platform](https://github.com/kagenti/kagenti), providing zero-trust identity and authorization infrastructure for AI agents.*
+*AuthBridge is part of the [Kagenti Agentic Platform](https://github.com/kagenti/kagenti), providing zero-trust identity and authorization infrastructure for AI agents—so developers can focus on building agents, not managing credentials.*
 
