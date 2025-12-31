@@ -5,6 +5,7 @@ Agentic
 Ansible
 Args
 Attestation
+Auditable
 AuthBridge
 AuthBridge's
 AuthProxy
@@ -43,6 +44,7 @@ Flowchart
 GitHub's
 GitOps
 Github
+GoPro
 GoProc
 GoReleaser
 GroupVersion
@@ -54,7 +56,9 @@ IdPs
 ImagePullSecrets
 Init
 Istio's
+JWKS
 JWT
+JWT's
 JWTs
 Json
 Jsonnet
@@ -179,6 +183,7 @@ argoproj
 attestation
 attests
 aud
+auditable
 auth
 authbridge
 authenticator
@@ -228,7 +233,9 @@ color
 config
 configmap
 configmaps
+configs
 containerPort
+crds
 creds
 cron
 crt
@@ -286,6 +293,7 @@ gcr
 ghcr
 ghodss
 github
+githubusercontent
 gitignore
 gke
 golang
@@ -302,6 +310,7 @@ http
 https
 iat
 ico
+ietf
 infra
 ingressClass
 init
@@ -321,6 +330,7 @@ jq
 json
 jsonnet
 jsonpath
+jwks
 k8s
 kagenti
 keycloak
@@ -351,10 +361,12 @@ marshalling
 mcpserver
 mermaid
 metadata
+mgmt
 microservice
 microservices
 middleware
 monorepo
+mountPath
 multiarch
 multiline
 mutex
@@ -372,6 +384,7 @@ nonroot
 noteworthy
 ns
 nsenter
+oauth
 oci
 ok
 openid
@@ -381,6 +394,7 @@ os
 outDir
 over-privileged
 param
+params
 participant
 plaintext
 png
@@ -455,6 +469,7 @@ selfsigned
 semver
 sequenceDiagram
 serviceAccount
+serviceAccountName
 serviceAccountsEnabled
 serviceaccounts
 servicemonitor
@@ -526,6 +541,7 @@ uname
 uncomment
 uncommented
 undef
+undeploy
 unencrypted
 unhashed
 unmarshal
@@ -535,6 +551,7 @@ unprivileged
 untar
 uri
 url
+urlencoded
 userInfo
 userinfo
 username
@@ -548,6 +565,7 @@ venv
 versioned
 versioning
 viper
+volumeMounts
 webhook
 webhooks
 whitespace
