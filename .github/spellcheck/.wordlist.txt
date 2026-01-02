@@ -438,6 +438,7 @@ gRPC
 gcr
 ghcr
 ghodss
+getenv
 github
 githubusercontent
 gitignore
@@ -627,6 +628,7 @@ sidecars
 sigstore
 skaffold
 skipVerify
+SlackAgent
 spiffe
 spire
 ssl
