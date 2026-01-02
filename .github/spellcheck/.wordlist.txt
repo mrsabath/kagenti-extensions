@@ -110,6 +110,10 @@ PullPolicy
 RBAC
 RFC8693
 RL
+Pre
+ProxyInit
+PullPolicy
+RBAC
 RSA
 ReDoc
 ReadOnly
@@ -189,7 +193,6 @@ authbridge
 authenticator
 authenticators
 authn
-authnz
 authproxy
 authz
 auto-populated
@@ -198,6 +201,9 @@ auto-renewed
 autonumber
 autoscaling
 azp
+authproxy
+autonumber
+autoscaling
 backend
 backends
 backoff
@@ -315,6 +321,10 @@ ietf
 infra
 ingressClass
 init
+iat
+ico
+ietf
+init
 initContainer
 initContainers
 inline
@@ -383,6 +393,9 @@ nodePort
 nolint
 nonroot
 noteworthy
+nodePort
+nolint
+nonroot
 ns
 nsenter
 oauth
@@ -391,6 +404,8 @@ ok
 openid
 openssh
 originalToken
+openid
+openssh
 os
 outDir
 over-privileged
@@ -407,6 +422,10 @@ pre
 pre-created
 pre-creating
 pre-provisioned
+png
+podSelector
+podTemplateSpec
+pre
 prebuilt
 preflight
 prepend
@@ -468,6 +487,10 @@ secretKeyRef
 secretRef
 selfsigned
 semver
+sequenceDiagram
+serviceAccount
+serviceAccountName
+serviceAccountsEnabled
 sequenceDiagram
 serviceAccount
 serviceAccountName
