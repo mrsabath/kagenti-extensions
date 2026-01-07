@@ -107,109 +107,15 @@ func getConfig() (clientID, clientSecret, tokenURL, targetAudience, targetScopes
 	return globalConfig.ClientID, globalConfig.ClientSecret, globalConfig.TokenURL, globalConfig.TargetAudience, globalConfig.TargetScopes
 }
 
-// getActorToken obtains a token for the agent client itself using client_credentials grant.
-// This token is used as the actor_token in token exchange, proving agent's identity.
-func getActorToken(clientID, clientSecret, tokenURL string) (string, error) {
-	log.Printf("[Actor Token] Getting actor token for %s", clientID)
-
-	data := url.Values{}
-	data.Set("client_id", clientID)
-	data.Set("client_secret", clientSecret)
-	data.Set("grant_type", "client_credentials")
-
-	resp, err := http.PostForm(tokenURL, data)
-	if err != nil {
-		log.Printf("[Actor Token] Failed to make request: %v", err)
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("[Actor Token] Failed to read response: %v", err)
-		return "", err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("[Actor Token] Failed with status %d: %s", resp.StatusCode, string(body))
-		return "", status.Errorf(codes.Internal, "actor token request failed: %s", string(body))
-	}
-
-	var tokenResp tokenExchangeResponse
-	if err := json.Unmarshal(body, &tokenResp); err != nil {
-		log.Printf("[Actor Token] Failed to parse response: %v", err)
-		return "", err
-	}
-
-	log.Printf("[Actor Token] Successfully obtained actor token")
-	return tokenResp.AccessToken, nil
-}
-
-// exchangeToken performs OAuth 2.0 Token Exchange (RFC 8693) with actor token support.
-// The actor token proves that agent is authorized to perform the exchange,
-// allowing it to exchange tokens that don't have agent in their audience.
+// exchangeToken performs OAuth 2.0 Token Exchange (RFC 8693).
+// Exchanges the subject token for a new token with the specified audience.
+// Requires the agent client to be in the subject token's audience (via agent-aud realm scope).
 func exchangeToken(clientID, clientSecret, tokenURL, subjectToken, audience, scopes string) (string, error) {
-	log.Printf("[Token Exchange] Starting token exchange with actor token")
+	log.Printf("[Token Exchange] Starting token exchange")
 	log.Printf("[Token Exchange] Token URL: %s", tokenURL)
 	log.Printf("[Token Exchange] Client ID: %s", clientID)
 	log.Printf("[Token Exchange] Audience: %s", audience)
 	log.Printf("[Token Exchange] Scopes: %s", scopes)
-
-	// Step 1: Get actor token for agent
-	actorToken, err := getActorToken(clientID, clientSecret, tokenURL)
-	if err != nil {
-		log.Printf("[Token Exchange] Failed to get actor token: %v", err)
-		// Fall back to exchange without actor token
-		log.Printf("[Token Exchange] Falling back to exchange without actor token")
-		return exchangeTokenWithoutActor(clientID, clientSecret, tokenURL, subjectToken, audience, scopes)
-	}
-
-	// Step 2: Perform token exchange with actor token
-	log.Printf("[Token Exchange] Performing token exchange with actor token")
-	data := url.Values{}
-	data.Set("client_id", clientID)
-	data.Set("client_secret", clientSecret)
-	data.Set("grant_type", "urn:ietf:params:oauth:grant-type:token-exchange")
-	data.Set("requested_token_type", "urn:ietf:params:oauth:token-type:access_token")
-	data.Set("subject_token", subjectToken)
-	data.Set("subject_token_type", "urn:ietf:params:oauth:token-type:access_token")
-	data.Set("actor_token", actorToken)
-	data.Set("actor_token_type", "urn:ietf:params:oauth:token-type:access_token")
-	data.Set("audience", audience)
-	data.Set("scope", scopes)
-
-	resp, err := http.PostForm(tokenURL, data)
-	if err != nil {
-		log.Printf("[Token Exchange] Failed to make request: %v", err)
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("[Token Exchange] Failed to read response: %v", err)
-		return "", err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("[Token Exchange] Failed with status %d: %s", resp.StatusCode, string(body))
-		return "", status.Errorf(codes.Internal, "token exchange failed: %s", string(body))
-	}
-
-	var tokenResp tokenExchangeResponse
-	if err := json.Unmarshal(body, &tokenResp); err != nil {
-		log.Printf("[Token Exchange] Failed to parse response: %v", err)
-		return "", err
-	}
-
-	log.Printf("[Token Exchange] Successfully exchanged token with actor token")
-	return tokenResp.AccessToken, nil
-}
-
-// exchangeTokenWithoutActor performs token exchange without actor token (original behavior).
-// Used as a fallback if actor token cannot be obtained.
-func exchangeTokenWithoutActor(clientID, clientSecret, tokenURL, subjectToken, audience, scopes string) (string, error) {
-	log.Printf("[Token Exchange] Performing token exchange without actor token")
 
 	data := url.Values{}
 	data.Set("client_id", clientID)
