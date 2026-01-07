@@ -391,7 +391,7 @@ TOKEN=$(curl -sX POST http://keycloak-service.keycloak.svc:8080/realms/demo/prot
 echo "Token obtained!"
 
 # Verify token audience (should be Agent's SPIFFE ID via self-aud scope)
-echo $TOKEN | cut -d'.' -f2 | tr '_-' '/+' | { read p; echo "${p}=="; } | base64 -d | jq '{aud, azp, scope}'
+echo $TOKEN | cut -d'.' -f2 | tr '_-' '/+' | { read p; echo "${p}=="; } | base64 -d | jq '{aud, azp, scope, iss}'
 
 # Call auth-target (AuthProxy will exchange token for "auth-target" audience)
 curl -H "Authorization: Bearer $TOKEN" http://auth-target-service:8081/test
@@ -494,7 +494,7 @@ TOKEN=$(curl -s http://keycloak-service.keycloak.svc:8080/realms/demo/protocol/o
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║           ORIGINAL TOKEN (Before Exchange)                   ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
-echo $TOKEN | cut -d'.' -f2 | tr '_-' '/+' | { read p; echo "${p}=="; } | base64 -d | jq "{aud, azp, scope}"
+echo $TOKEN | cut -d'.' -f2 | tr '_-' '/+' | { read p; echo "${p}=="; } | base64 -d | jq "{aud, azp, scope, iss}"
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
