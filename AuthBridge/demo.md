@@ -117,7 +117,7 @@ TOKEN=$(curl -sX POST http://keycloak-service.keycloak.svc:8080/realms/demo/prot
 
 echo "Token obtained!"
 
-# Verify token audience (should be Agent's SPIFFE ID via self-aud scope)
+# Verify token audience (should be Agent's SPIFFE ID via agent-spiffe-aud scope)
 echo $TOKEN | cut -d'.' -f2 | tr '_-' '/+' | { read p; echo "${p}=="; } | base64 -d | jq '{aud, azp, scope, iss}'
 
 # Call auth-target (AuthProxy will exchange token for "auth-target" audience)
