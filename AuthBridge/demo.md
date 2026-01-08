@@ -123,37 +123,38 @@ The following diagram shows the complete token flow from initialization through 
 │                            RUNTIME PHASE                                     │
 └──────────────────────────────────────────────────────────────────────────────┘
 
-  Agent Container        AuthProxy Sidecar          Auth-Target      Keycloak
-       │                        │                        │               │
-       │ 3. Get token           │                        │               │
-       │    (client_credentials)│                        │               │
-       │────────────────────────┼────────────────────────┼──────────────►│
-       │◄───────────────────────┼────────────────────────┼───────────────│
-       │    Token: aud=SPIFFE ID│                        │               │
-       │                        │                        │               │
-       │ 4. Call auth-target    │                        │               │
-       │    with token          │                        │               │
-       │───────────────────────►│                        │               │
-       │                        │                        │               │
-       │                   ┌────┴────┐                   │               │
-       │                   │ Envoy   │                   │               │
-       │                   │intercepts                   │               │
-       │                   └────┬────┘                   │               │
-       │                        │                        │               │
-       │                        │ 5. Token Exchange      │               │
-       │                        │    (ext-proc)          │               │
-       │                        │───────────────────────────────────────►│
-       │                        │◄───────────────────────────────────────│
-       │                        │    New token: aud=auth-target          │
-       │                        │                        │               │
-       │                        │ 6. Forward request     │               │
-       │                        │    with new token      │               │
-       │                        │───────────────────────►│               │
-       │                        │                        │               │
-       │                        │◄───────────────────────│               │
-       │                        │    "authorized"        │               │
-       │◄───────────────────────│                        │               │
-       │    Response            │                        │               │
+  Agent Container        AuthProxy Sidecar        Keycloak          Auth-Target
+       │                        │                    │                    │
+       │ 3. Get token           │                    │                    │
+       │    (client_credentials)│                    │                    │
+       │────────────────────────┼───────────────────►│                    │
+       │◄───────────────────────┼────────────────────│                    │
+       │    Token: aud=SPIFFE ID│                    │                    │
+       │                        │                    │                    │
+       │ 4. Call auth-target    │                    │                    │
+       │    with token          │                    │                    │
+       │───────────────────────►│                    │                    │
+       │                        │                    │                    │
+       │                   ┌────┴────┐               │                    │
+       │                   │ Envoy   │               │                    │
+       │                   │intercepts               │                    │
+       │                   └────┬────┘               │                    │
+       │                        │                    │                    │
+       │                        │ 5. Token Exchange  │                    │
+       │                        │    (ext-proc)      │                    │
+       │                        │───────────────────►│                    │
+       │                        │◄───────────────────│                    │
+       │                        │  New token:        │                    │
+       │                        │  aud=auth-target   │                    │
+       │                        │                    │                    │
+       │                        │ 6. Forward request │                    │
+       │                        │    with new token  │                    │
+       │                        │────────────────────────────────────────►│
+       │                        │                    │                    │
+       │                        │◄────────────────────────────────────────│
+       │                        │                 "authorized"            │
+       │◄───────────────────────│                    │                    │
+       │    Response            │                    │                    │
 ```
 
 <details>
@@ -172,7 +173,7 @@ sequenceDiagram
     participant Target as auth-target
 
     rect rgb(240, 248, 255)
-        Note over SPIRE,KC: INITIALIZATION PHASE
+        Note over SPIRE,Target: INITIALIZATION PHASE
         SPIRE->>Helper: Issue SVID (SPIFFE ID)
         Helper->>Reg: SPIFFE credentials ready
         Reg->>KC: Register client (client_id = SPIFFE ID)
