@@ -97,7 +97,7 @@ sequenceDiagram
 
     Note over Caller,Target: Runtime Flow
     Caller->>KC: Get token (aud: Agent's SPIFFE ID)
-    KC-->>Caller: Token with self-aud scope
+    KC-->>Caller: Token with agent-spiffe-aud (self-aud) scope
     
     Caller->>Agent: Pass token
     Agent->>Envoy: Call Auth Target with Caller's token
