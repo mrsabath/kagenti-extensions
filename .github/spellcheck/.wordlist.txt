@@ -24,9 +24,9 @@ ConfigMap
 ConfigMaps
 CRD
 CRDs
-creds
 Cryptographic
 CustomResourceDefinition
+creds
 DaemonSet
 DefaultMode
 Dockerfile
