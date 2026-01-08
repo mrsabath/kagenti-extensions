@@ -10,38 +10,38 @@ The demo deploys the following components:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              KUBERNETES CLUSTER                              │
-│                                                                              │
+│                              KUBERNETES CLUSTER                             │
+│                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                    AGENT POD (namespace: authbridge)                 │    │
-│  │                                                                      │    │
+│  │                    AGENT POD (namespace: authbridge)                │    │
+│  │                                                                     │    │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌──────────────────────────────┐ │    │
 │  │  │    agent    │  │   spiffe-   │  │      client-registration     │ │    │
 │  │  │ (netshoot)  │  │   helper    │  │  (registers with Keycloak)   │ │    │
 │  │  └─────────────┘  └─────────────┘  └──────────────────────────────┘ │    │
-│  │                                                                      │    │
+│  │                                                                     │    │
 │  │  ┌───────────────────────────────────────────────────────────────┐  │    │
-│  │  │                    AuthProxy Sidecar                           │  │    │
+│  │  │                    AuthProxy Sidecar                          │  │    │
 │  │  │  ┌────────────┐  ┌──────────────┐  ┌────────────────────────┐ │  │    │
 │  │  │  │ auth-proxy │  │ envoy-proxy  │  │       ext-proc         │ │  │    │
 │  │  │  │  (8080)    │  │   (15123)    │  │  (token exchange)      │ │  │    │
 │  │  │  └────────────┘  └──────────────┘  └────────────────────────┘ │  │    │
 │  │  └───────────────────────────────────────────────────────────────┘  │    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
-│                                      │                                       │
-│                                      ▼                                       │
+│                                      │                                      │
+│                                      ▼                                      │
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                 AUTH-TARGET POD (namespace: authbridge)              │    │
-│  │                                                                      │    │
+│  │                 AUTH-TARGET POD (namespace: authbridge)             │    │
+│  │                                                                     │    │
 │  │  ┌─────────────────────────────────────────────────────────────┐    │    │
-│  │  │                      auth-target (8081)                      │    │    │
-│  │  │               Validates tokens with aud: auth-target         │    │    │
+│  │  │                      auth-target (8081)                     │    │    │
+│  │  │               Validates tokens with aud: auth-target        │    │    │
 │  │  └─────────────────────────────────────────────────────────────┘    │    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                              │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                            EXTERNAL SERVICES                                 │
-│                                                                              │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                            EXTERNAL SERVICES                                │
+│                                                                             │
 │  ┌──────────────────────┐          ┌──────────────────────┐                 │
 │  │   SPIRE (namespace:  │          │ KEYCLOAK (namespace: │                 │
 │  │       spire)         │          │     keycloak)        │                 │
@@ -101,7 +101,7 @@ The following diagram shows the complete token flow from initialization through 
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                           INITIALIZATION PHASE                                │
+│                           INITIALIZATION PHASE                               │
 └──────────────────────────────────────────────────────────────────────────────┘
 
   SPIRE Agent           Agent Pod                              Keycloak
@@ -120,7 +120,7 @@ The following diagram shows the complete token flow from initialization through 
        │                    │    (saved to /shared/)               │
 
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                            RUNTIME PHASE                                      │
+│                            RUNTIME PHASE                                     │
 └──────────────────────────────────────────────────────────────────────────────┘
 
   Agent Container        AuthProxy Sidecar          Auth-Target      Keycloak
