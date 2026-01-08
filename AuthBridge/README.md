@@ -150,7 +150,7 @@ sequenceDiagram
 │  │                      Containers                                 │   │
 │  │  ┌──────────────┐  ┌─────────────────┐  ┌────────────────────┐  │   │
 │  │  │  Your App    │  │  SPIFFE Helper  │  │    AuthProxy +     │  │   │
-│  │  │              │  │  (provides      │  │    Envoy + Go Proc │  │   │
+│  │  │              │  │  (provides      │  │    Envoy + Ext Proc│  │   │
 │  │  │              │  │   SPIFFE creds) │  │  (token exchange)  │  │   │
 │  │  └──────┬───────┘  └─────────────────┘  └──────────┬─────────┘  │   │
 │  │                                                                 │   │
