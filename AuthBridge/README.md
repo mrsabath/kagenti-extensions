@@ -8,9 +8,9 @@ AuthBridge provides **secure, transparent token management** for Kubernetes work
 
 AuthBridge solves the challenge of **secure service-to-service authentication** in Kubernetes:
 
-1. **Automatic Identity** - Workloads automatically obtain their identity from SPIFFE/SPIRE and register as Keycloak clients using their SPIFFE ID (e.g., `spiffe://localtest.me/ns/authbridge/sa/agent`)
+1. **Automatic Identity** - Workloads automatically obtain their identity from SPIFFE/SPIRE and register as Keycloak clients using their SPIFFE ID (e.g., `spiffe://example.com/ns/default/sa/myapp`)
 
-2. **Token-Based Authorization** - Callers obtain JWT tokens from Keycloak with the target's identity as the audience, authorizing them to invoke specific services
+2. **Token-Based Authorization** - Callers obtain JWT tokens from Keycloak with the workload's identity as the audience, authorizing them to invoke specific services
 
 3. **Transparent Token Exchange** - A sidecar intercepts outgoing requests, validates incoming tokens, and exchanges them for tokens with the appropriate target audience—all without application code changes
 
@@ -18,9 +18,9 @@ AuthBridge solves the challenge of **secure service-to-service authentication** 
 
 ## End-to-End Flow
 
-**Initialization (Agent Pod Startup):**
+**Initialization (Workload Pod Startup):**
 ```
-  SPIRE Agent              Agent Pod                         Keycloak
+  SPIRE Agent             Workload Pod                        Keycloak
        │                        │                                │
        │  0. SVID               │                                │
        │───────────────────────►│  SPIFFE Helper                 │
@@ -38,31 +38,31 @@ AuthBridge solves the challenge of **secure service-to-service authentication** 
 
 **Runtime Flow:**
 ```
-  Caller              Agent Pod                Auth Target      Keycloak
+  Caller             Workload Pod              Target Service    Keycloak
     │                     │                        │               │
     │  2. Get token       │                        │               │
-    │  (aud: Agent's SPIFFE ID)                    │               │
+    │  (aud: Workload's SPIFFE ID)                 │               │
     │─────────────────────────────────────────────────────────────►│
     │◄─────────────────────────────────────────────────────────────│
-    │  Token (scope: agent-spiffe-aud)            │               │
+    │  Token (aud: Workload)                       │               │
     │                     │                        │               │
     │  3. Pass token      │                        │               │
-    │  to Agent           │                        │               │
+    │  to Workload        │                        │               │
     │────────────────────►│                        │               │
     │                     │                        │               │
-    │                     │  4. Agent calls        │               │
-    │                     │  Auth Target with      │               │
+    │                     │  4. Workload calls     │               │
+    │                     │  Target Service with   │               │
     │                     │  Caller's token        │               │
     │                     │──────────┐             │               │
     │                     │          │             │               │
     │                     │  AuthProxy intercepts  │               │
-    │                     │  validates aud=Agent   │               │
+    │                     │  validates aud         │               │
     │                     │          │             │               │
     │                     │  5. Token Exchange     │               │
-    │                     │  (using Agent's creds) │               │
+    │                     │  (using Workload creds)│               │
     │                     │───────────────────────────────────────►│
     │                     │◄───────────────────────────────────────│
-    │                     │  New token (aud: auth-target)          │
+    │                     │  New token (aud: target-service)       │
     │                     │          │             │               │
     │                     │  6. Forward request    │               │
     │                     │  with exchanged token  │               │
@@ -84,33 +84,33 @@ sequenceDiagram
     participant Helper as SPIFFE Helper
     participant Reg as Client Registration
     participant Caller as Caller
-    participant Agent as Agent
+    participant App as Workload
     participant Envoy as AuthProxy (Envoy + Ext Proc)
     participant KC as Keycloak
-    participant Target as Auth Target
+    participant Target as Target Service
 
-    Note over Helper,SPIRE: Agent Pod Initialization
+    Note over Helper,SPIRE: Workload Pod Initialization
     SPIRE->>Helper: SVID (SPIFFE credentials)
     Helper->>Reg: JWT with SPIFFE ID
     Reg->>KC: Register client (client_id = SPIFFE ID)
     KC-->>Reg: Client credentials (saved to /shared/)
 
     Note over Caller,Target: Runtime Flow
-    Caller->>KC: Get token (aud: Agent's SPIFFE ID)
-    KC-->>Caller: Token with agent-spiffe-aud (self-aud) scope
+    Caller->>KC: Get token (aud: Workload's SPIFFE ID)
+    KC-->>Caller: Token with workload-aud scope
     
-    Caller->>Agent: Pass token
-    Agent->>Envoy: Call Auth Target with Caller's token
+    Caller->>App: Pass token
+    App->>Envoy: Call Target Service with Caller's token
     
-    Note over Envoy: AuthProxy intercepts<br/>Validates aud = Agent's ID<br/>Uses Agent's credentials
+    Note over Envoy: AuthProxy intercepts<br/>Validates aud = Workload's ID<br/>Uses Workload's credentials
     
-    Envoy->>KC: Token Exchange (Agent's creds)
-    KC-->>Envoy: New Token (aud: auth-target)
+    Envoy->>KC: Token Exchange (Workload's creds)
+    KC-->>Envoy: New Token (aud: target-service)
     
     Envoy->>Target: Request + Exchanged Token
-    Target->>Target: Validate token (aud: auth-target)
-    Target-->>Agent: "authorized"
-    Agent-->>Caller: Response
+    Target->>Target: Validate token (aud: target-service)
+    Target-->>App: "authorized"
+    App-->>Caller: Response
 ```
 
 </details>
@@ -120,28 +120,27 @@ sequenceDiagram
 | Step | Component | Verification |
 |------|-----------|--------------|
 | 0 | SPIFFE Helper | SVID obtained from SPIRE Agent |
-| 1 | Client Registration | Agent registered with Keycloak (client_id = SPIFFE ID) |
-| 2 | Caller | Token obtained with `aud: Agent's SPIFFE ID` (via `agent-spiffe-aud` scope) |
-| 3 | Agent | Token received from Caller |
-| 4 | AuthProxy | Token validated (aud matches Agent's identity) |
-| 5 | Ext Proc | Token exchanged using Agent's credentials → `aud: auth-target` |
-| 6 | Auth Target | Token validated, returns `"authorized"` |
+| 1 | Client Registration | Workload registered with Keycloak (client_id = SPIFFE ID) |
+| 2 | Caller | Token obtained with `aud: Workload's SPIFFE ID` |
+| 3 | Workload | Token received from Caller |
+| 4 | AuthProxy | Token validated (aud matches Workload's identity) |
+| 5 | Ext Proc | Token exchanged using Workload's credentials → `aud: target-service` |
+| 6 | Target Service | Token validated, returns `"authorized"` |
 
 ## Key Security Properties
 
 - **No Static Secrets** - Credentials are dynamically generated during registration
 - **Short-Lived Tokens** - JWT tokens expire and must be refreshed
-- **Self-Audience Scoping** - Tokens include the Agent's own identity as audience, enabling token exchange
-- **Same Identity for Exchange** - AuthProxy uses the Agent's credentials (same SPIFFE ID), matching the token's audience
+- **Self-Audience Scoping** - Tokens include the Workload's own identity as audience, enabling token exchange
+- **Same Identity for Exchange** - AuthProxy uses the Workload's credentials (same SPIFFE ID), matching the token's audience
 - **Transparent to Application** - Token exchange is handled by the sidecar; applications don't need to implement it
 
 ## Architecture
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                           AGENT POD                                    │
-│                       (namespace: authbridge)                          │
-│                      (serviceAccount: agent)                           │
+│                          WORKLOAD POD                                  │
+│                    (with AuthBridge sidecars)                          │
 │                                                                        │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │  Init Container: proxy-init (iptables setup)                    │   │
@@ -150,29 +149,28 @@ sequenceDiagram
 │  ┌─────────────────────────────────────────────────────────────────┐   │
 │  │                      Containers                                 │   │
 │  │  ┌──────────────┐  ┌─────────────────┐  ┌────────────────────┐  │   │
-│  │  │    Agent     │  │  SPIFFE Helper  │  │    AuthProxy +     │  │   │
-│  │  │  (netshoot)  │  │  (provides      │  │    Envoy + Go Proc │  │   │
+│  │  │  Your App    │  │  SPIFFE Helper  │  │    AuthProxy +     │  │   │
+│  │  │              │  │  (provides      │  │    Envoy + Go Proc │  │   │
 │  │  │              │  │   SPIFFE creds) │  │  (token exchange)  │  │   │
 │  │  └──────┬───────┘  └─────────────────┘  └──────────┬─────────┘  │   │
 │  │                                                                 │   │
 │  │  ┌───────────────────────────────────────────────────────────┐  │   │
-│  │  │ client-registration (registers Agent with Keycloak)       │  │   │
+│  │  │ client-registration (registers Workload with Keycloak)    │  │   │
 │  │  └───────────────────────────────────────────────────────────┘  │   │
 │  └─────────┼───────────────────────────────────────────┼───────────┘   │
 │            │ Caller's token (aud: SPIFFE ID)           │               │
 │            └───────────────────────────────────────────┘               │
 │                              │                                         │
 └──────────────────────────────┼─────────────────────────────────────────┘
-                               │ Token exchanged for auth-target audience
-                               │ (using Agent's own credentials)
+                               │ Token exchanged for target-service audience
+                               │ (using Workload's own credentials)
                                ▼
                     ┌─────────────────────┐
-                    │   AUTH TARGET POD   │
-                    │   (Target Server)   │
+                    │  TARGET SERVICE POD │
                     │                     │
                     │  Validates token    │
                     │  with audience      │
-                    │  "auth-target"      │
+                    │  "target-service"   │
                     └─────────────────────┘
 ```
 
@@ -181,12 +179,12 @@ sequenceDiagram
 
 ```mermaid
 flowchart TB
-    subgraph AgentPod["AGENT POD (namespace: authbridge, sa: agent)"]
+    subgraph WorkloadPod["WORKLOAD POD (with AuthBridge sidecars)"]
         subgraph Init["Init Container"]
             ProxyInit["proxy-init<br/>(iptables setup)"]
         end
         subgraph Containers["Containers"]
-            Agent["agent<br/>(netshoot)"]
+            App["Your Application"]
             SpiffeHelper["SPIFFE Helper<br/>(provides SVID)"]
             ClientReg["client-registration<br/>(registers with Keycloak)"]
             subgraph Sidecar["AuthProxy Sidecar"]
@@ -197,8 +195,8 @@ flowchart TB
         end
     end
 
-    subgraph TargetPod["AUTH TARGET POD"]
-        AuthTarget["auth-target<br/>(validates tokens)"]
+    subgraph TargetPod["TARGET SERVICE POD"]
+        Target["Target Service<br/>(validates tokens)"]
     end
 
     subgraph External["External Services"]
@@ -212,15 +210,15 @@ flowchart TB
     SpiffeHelper --> ClientReg
     ClientReg --> Keycloak
     Caller -->|"1. Get token"| Keycloak
-    Caller -->|"2. Pass token"| Agent
-    Agent -->|"3. Request + Token"| Envoy
+    Caller -->|"2. Pass token"| App
+    App -->|"3. Request + Token"| Envoy
     Envoy --> ExtProc
     ExtProc -->|"4. Token Exchange"| Keycloak
-    Envoy -->|"5. Request + Exchanged Token"| AuthTarget
-    AuthTarget -->|"6. Response"| Agent
-    Agent -->|"7. Response"| Caller
+    Envoy -->|"5. Request + Exchanged Token"| Target
+    Target -->|"6. Response"| App
+    App -->|"7. Response"| Caller
 
-    style AgentPod fill:#e1f5fe
+    style WorkloadPod fill:#e1f5fe
     style TargetPod fill:#e8f5e9
     style Sidecar fill:#fff3e0
     style External fill:#fce4ec
@@ -231,20 +229,19 @@ flowchart TB
 
 ## Components
 
-### Agent Pod
+### Workload Pod (AuthBridge Sidecars)
 
 | Container | Type | Purpose |
 |-----------|------|---------|
-| `proxy-init` | init | Sets up iptables to intercept outgoing traffic (excludes port 8080 for Keycloak) |
+| `proxy-init` | init | Sets up iptables to intercept outgoing traffic (excludes Keycloak port) |
 | `client-registration` | container | Registers workload with Keycloak using SPIFFE ID, saves credentials to `/shared/` |
-| `agent` (netshoot) | container | The agent application receiving tokens from Callers |
 | `spiffe-helper` | container | Provides SPIFFE credentials (SVID) |
 | `auth-proxy` | container | Validates tokens |
 | `envoy-proxy` | container | Intercepts traffic and performs token exchange via Ext Proc |
 
-### Auth Target Pod
+### Target Service Pod
 
-A target service that validates incoming tokens have `aud: auth-target`.
+Any downstream service that validates incoming tokens have the expected audience.
 
 ## Prerequisites
 
