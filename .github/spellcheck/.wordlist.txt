@@ -192,6 +192,7 @@ cgroups
 chmod
 cli
 clientId
+clientreg
 cline
 clusterrole
 clusterrolebinding
@@ -229,6 +230,7 @@ elif
 env
 envoy
 etcd
+extproc
 fce
 fd
 fe
@@ -349,6 +351,7 @@ readiness
 readonly
 reconfiguration
 recurse
+rect
 redhat
 redis
 redoc
@@ -360,6 +363,7 @@ repo
 repos
 resync
 retry
+rgb
 rolebinding
 rollout
 rollouts
