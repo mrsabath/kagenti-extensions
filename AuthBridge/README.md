@@ -44,7 +44,7 @@ AuthBridge solves the challenge of **secure service-to-service authentication** 
     │  (aud: Agent's SPIFFE ID)                    │               │
     │─────────────────────────────────────────────────────────────►│
     │◄─────────────────────────────────────────────────────────────│
-    │  Token (self-aud)   │                        │               │
+    │  Token (scope: agent-spiffe-aud)            │               │
     │                     │                        │               │
     │  3. Pass token      │                        │               │
     │  to Agent           │                        │               │
