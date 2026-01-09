@@ -136,17 +136,17 @@ env:
 
 ### Token Exchange Configuration
 
-The Ext Proc receives token exchange parameters via headers (set by Envoy's Lua filter):
+The Ext Proc receives token exchange parameters via internal headers (injected by Envoy Lua filter from environment variables):
 
-| Header | Description |
-|--------|-------------|
-| `x-token-url` | Keycloak token endpoint URL |
-| `x-client-id` | Client ID for token exchange |
-| `x-client-secret` | Client secret |
-| `x-target-audience` | Desired audience for new token |
-| `x-target-scopes` | Desired scopes for new token |
+| Header | Description | Source |
+|--------|-------------|--------|
+| `x-token-url` | Keycloak token endpoint URL | `TOKEN_URL` env var |
+| `x-client-id` | Client ID for token exchange | `/shared/client-id.txt` or `CLIENT_ID` env var |
+| `x-client-secret` | Client secret | `/shared/client-secret.txt` or `CLIENT_SECRET` env var |
 
-These are typically configured via a Kubernetes Secret:
+#### Configuration Secret
+
+Token exchange is configured via a Kubernetes Secret:
 
 ```yaml
 apiVersion: v1
@@ -155,11 +155,17 @@ metadata:
   name: auth-proxy-config
 stringData:
   TOKEN_URL: "http://keycloak:8080/realms/demo/protocol/openid-connect/token"
-  CLIENT_ID: "my-client"
-  CLIENT_SECRET: "my-secret"
   TARGET_AUDIENCE: "target-service"
   TARGET_SCOPES: "openid target-service-aud"
 ```
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `TOKEN_URL` | Keycloak token endpoint | `http://keycloak:8080/realms/demo/protocol/openid-connect/token` |
+| `TARGET_AUDIENCE` | Target service audience | `auth-target` |
+| `TARGET_SCOPES` | Scopes for exchanged token | `openid auth-target-aud` |
+
+> **Note:** `CLIENT_ID` and `CLIENT_SECRET` can come from environment variables or from `/shared/` files (when using dynamic client registration with SPIFFE).
 
 ## Token Exchange Flow
 

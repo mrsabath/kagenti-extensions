@@ -134,6 +134,7 @@ sequenceDiagram
 - **Self-Audience Scoping** - Tokens include the Workload's own identity as audience, enabling token exchange
 - **Same Identity for Exchange** - AuthProxy uses the Workload's credentials (same SPIFFE ID), matching the token's audience
 - **Transparent to Application** - Token exchange is handled by the sidecar; applications don't need to implement it
+- **Configurable Target** - Target audience and scopes are configured via Kubernetes Secret
 
 ## Architecture
 

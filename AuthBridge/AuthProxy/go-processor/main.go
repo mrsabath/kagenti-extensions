@@ -57,7 +57,7 @@ func loadConfig() {
 	globalConfig.mu.Lock()
 	defer globalConfig.mu.Unlock()
 
-	// These are typically static and come from env vars
+	// Static configuration from environment variables
 	globalConfig.TokenURL = os.Getenv("TOKEN_URL")
 	globalConfig.TargetAudience = os.Getenv("TARGET_AUDIENCE")
 	globalConfig.TargetScopes = os.Getenv("TARGET_SCOPES")
@@ -237,6 +237,7 @@ func (p *processor) Process(stream v3.ExternalProcessor_ProcessServer) error {
 				log.Println("[Token Exchange] Configuration loaded, attempting token exchange")
 				log.Printf("[Token Exchange] Client ID: %s", clientID)
 				log.Printf("[Token Exchange] Target Audience: %s", targetAudience)
+				log.Printf("[Token Exchange] Target Scopes: %s", targetScopes)
 
 				// Extract current JWT from Authorization header
 				authHeader := getHeaderValue(headers.Headers, "authorization")
@@ -297,6 +298,8 @@ func (p *processor) Process(stream v3.ExternalProcessor_ProcessServer) error {
 				log.Println("[Token Exchange] Missing configuration, skipping token exchange")
 				log.Printf("[Token Exchange] CLIENT_ID present: %v, CLIENT_SECRET present: %v, TOKEN_URL present: %v",
 					clientID != "", clientSecret != "", tokenURL != "")
+				log.Printf("[Token Exchange] TARGET_AUDIENCE present: %v, TARGET_SCOPES present: %v",
+					targetAudience != "", targetScopes != "")
 				resp = &v3.ProcessingResponse{
 					Response: &v3.ProcessingResponse_RequestHeaders{
 						RequestHeaders: &v3.HeadersResponse{},
