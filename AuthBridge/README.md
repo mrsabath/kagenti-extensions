@@ -16,126 +16,6 @@ AuthBridge solves the challenge of **secure service-to-service authentication** 
 
 4. **Target Service Validation** - Target services validate the exchanged token, ensuring it has the correct audience before authorizing requests
 
-## End-to-End Flow
-
-**Initialization (Workload Pod Startup):**
-```
-  SPIRE Agent             Workload Pod                        Keycloak
-       │                        │                                │
-       │  0. SVID               │                                │
-       │───────────────────────►│  SPIFFE Helper                 │
-       │  (SPIFFE ID)           │                                │
-       │                        │                                │
-       │                        │  1. Register client            │
-       │                        │  (client_id = SPIFFE ID)       │
-       │                        │───────────────────────────────►│
-       │                        │  Client Registration           │
-       │                        │                                │
-       │                        │◄───────────────────────────────│
-       │                        │  client_secret                 │
-       │                        │  (saved to /shared/)           │
-```
-
-**Runtime Flow:**
-```
-  Caller             Workload Pod              Keycloak      Target Service
-    │                     │                        │               │
-    │  2. Get token       │                        │               │
-    │  (aud: Workload's SPIFFE ID)                 │               │
-    │─────────────────────────────────────────────►│               │
-    │◄─────────────────────────────────────────────│               │
-    │  Token (aud: Workload)                       │               │
-    │                     │                        │               │
-    │  3. Pass token      │                        │               │
-    │  to Workload        │                        │               │
-    │────────────────────►│                        │               │
-    │                     │                        │               │
-    │                     │  4. Workload calls     │               │
-    │                     │  Target Service with   │               │
-    │                     │  Caller's token        │               │
-    │                     │──────────┐             │               │
-    │                     │          │             │               │
-    │                     │  AuthProxy intercepts  │               │
-    │                     │  validates aud         │               │
-    │                     │          │             │               │
-    │                     │  5. Token Exchange     │               │
-    │                     │  (using Workload creds)│               │
-    │                     │───────────────────────►│               │
-    │                     │◄───────────────────────│               │
-    │                     │  New token (aud: target-service)       │
-    │                     │          │             │               │
-    │                     │  6. Forward request    │               │
-    │                     │  with exchanged token  │               │
-    │                     │───────────────────────────────────────►│
-    │                     │                        │               │
-    │                     │◄───────────────────────────────────────│
-    │                     │  "authorized"          │               │
-    │◄────────────────────│                        │               │
-    │  Response           │                        │               │
-```
-
-<details>
-<summary><b>📊 Mermaid Diagram (click to expand)</b></summary>
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant SPIRE as SPIRE Agent
-    participant Helper as SPIFFE Helper
-    participant Reg as Client Registration
-    participant Caller as Caller
-    participant App as Workload
-    participant Envoy as AuthProxy (Envoy + Ext Proc)
-    participant KC as Keycloak
-    participant Target as Target Service
-
-    Note over Helper,SPIRE: Workload Pod Initialization
-    SPIRE->>Helper: SVID (SPIFFE credentials)
-    Helper->>Reg: JWT with SPIFFE ID
-    Reg->>KC: Register client (client_id = SPIFFE ID)
-    KC-->>Reg: Client credentials (saved to /shared/)
-
-    Note over Caller,Target: Runtime Flow
-    Caller->>KC: Get token (aud: Workload's SPIFFE ID)
-    KC-->>Caller: Token with workload-aud scope
-    
-    Caller->>App: Pass token
-    App->>Envoy: Call Target Service with Caller's token
-    
-    Note over Envoy: AuthProxy intercepts<br/>Validates aud = Workload's ID<br/>Uses Workload's credentials
-    
-    Envoy->>KC: Token Exchange (Workload's creds)
-    KC-->>Envoy: New Token (aud: target-service)
-    
-    Envoy->>Target: Request + Exchanged Token
-    Target->>Target: Validate token (aud: target-service)
-    Target-->>App: "authorized"
-    App-->>Caller: Response
-```
-
-</details>
-
-## What Gets Verified
-
-| Step | Component | Verification |
-|------|-----------|--------------|
-| 0 | SPIFFE Helper | SVID obtained from SPIRE Agent |
-| 1 | Client Registration | Workload registered with Keycloak (client_id = SPIFFE ID) |
-| 2 | Caller | Token obtained with `aud: Workload's SPIFFE ID` |
-| 3 | Workload | Token received from Caller |
-| 4 | AuthProxy | Token validated (aud matches Workload's identity) |
-| 5 | Ext Proc | Token exchanged using Workload's credentials → `aud: target-service` |
-| 6 | Target Service | Token validated, returns `"authorized"` |
-
-## Key Security Properties
-
-- **No Static Secrets** - Credentials are dynamically generated during registration
-- **Short-Lived Tokens** - JWT tokens expire and must be refreshed
-- **Self-Audience Scoping** - Tokens include the Workload's own identity as audience, enabling token exchange
-- **Same Identity for Exchange** - AuthProxy uses the Workload's credentials (same SPIFFE ID), matching the token's audience
-- **Transparent to Application** - Token exchange is handled by the sidecar; applications don't need to implement it
-- **Configurable Target** - Target audience and scopes are configured via Kubernetes Secret
-
 ## Architecture
 
 ```
@@ -243,6 +123,141 @@ flowchart TB
 ### Target Service Pod
 
 Any downstream service that validates incoming tokens have the expected audience.
+
+## End-to-End Flow
+
+**Initialization (Workload Pod Startup):**
+```
+  SPIRE Agent             Workload Pod                        Keycloak
+       │                        │                                │
+       │  0. SVID               │                                │
+       │───────────────────────►│  SPIFFE Helper                 │
+       │  (SPIFFE ID)           │                                │
+       │                        │                                │
+       │                        │  1. Register client            │
+       │                        │  (client_id = SPIFFE ID)       │
+       │                        │───────────────────────────────►│
+       │                        │  Client Registration           │
+       │                        │                                │
+       │                        │◄───────────────────────────────│
+       │                        │  client_secret                 │
+       │                        │  (saved to /shared/)           │
+```
+
+**Runtime Flow:**
+```
+  Caller             Workload Pod              Keycloak      Target Service
+    │                     │                        │               │
+    │  2. Get token       │                        │               │
+    │  (aud: Workload's SPIFFE ID)                 │               │
+    │─────────────────────────────────────────────►│               │
+    │◄─────────────────────────────────────────────│               │
+    │  Token (aud: Workload)                       │               │
+    │                     │                        │               │
+    │  3. Pass token      │                        │               │
+    │  to Workload        │                        │               │
+    │────────────────────►│                        │               │
+    │                     │                        │               │
+    │                     │  4. Workload calls     │               │
+    │                     │  Target Service with   │               │
+    │                     │  Caller's token        │               │
+    │                     │──────────┐             │               │
+    │                     │          │             │               │
+    │                     │  AuthProxy intercepts  │               │
+    │                     │  validates aud         │               │
+    │                     │          │             │               │
+    │                     │  5. Token Exchange     │               │
+    │                     │  (using Workload creds)│               │
+    │                     │───────────────────────►│               │
+    │                     │◄───────────────────────│               │
+    │                     │  New token (aud: target-service)       │
+    │                     │          │             │               │
+    │                     │  6. Forward request    │               │
+    │                     │  with exchanged token  │               │
+    │                     │───────────────────────────────────────►│
+    │                     │                        │               │
+    │                     │◄───────────────────────────────────────│
+    │                     │  "authorized"          │               │
+    │◄────────────────────│                        │               │
+    │  Response           │                        │               │
+```
+
+## What Gets Verified
+
+| Step | Component | Verification |
+|------|-----------|--------------|
+| 0 | SPIFFE Helper | SVID obtained from SPIRE Agent |
+| 1 | Client Registration | Workload registered with Keycloak (client_id = SPIFFE ID) |
+| 2 | Caller | Token obtained with `aud: Workload's SPIFFE ID` |
+| 3 | Workload | Token received from Caller |
+| 4 | AuthProxy | Token validated (aud matches Workload's identity) |
+| 5 | Ext Proc | Token exchanged using Workload's credentials → `aud: target-service` |
+| 6 | Target Service | Token validated, returns `"authorized"` |
+
+## Detailed End-to-End Flow
+
+<details>
+<summary><b>📊 Mermaid Diagram (click to expand)</b></summary>
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SPIRE as SPIRE Agent
+    participant Helper as SPIFFE Helper
+    participant Reg as Client Registration
+    participant Caller as Caller
+    participant App as Workload
+    participant Envoy as AuthProxy (Envoy + Ext Proc)
+    participant KC as Keycloak
+    participant Target as Target Service
+
+    Note over Helper,SPIRE: Workload Pod Initialization
+    SPIRE->>Helper: SVID (SPIFFE credentials)
+    Helper->>Reg: JWT with SPIFFE ID
+    Reg->>KC: Register client (client_id = SPIFFE ID)
+    KC-->>Reg: Client credentials (saved to /shared/)
+
+    Note over Caller,Target: Runtime Flow
+    Caller->>KC: Get token (aud: Workload's SPIFFE ID)
+    KC-->>Caller: Token with workload-aud scope
+    
+    Caller->>App: Pass token
+    App->>Envoy: Call Target Service with Caller's token
+    
+    Note over Envoy: AuthProxy intercepts<br/>Validates aud = Workload's ID<br/>Uses Workload's credentials
+    
+    Envoy->>KC: Token Exchange (Workload's creds)
+    KC-->>Envoy: New Token (aud: target-service)
+    
+    Envoy->>Target: Request + Exchanged Token
+    Target->>Target: Validate token (aud: target-service)
+    Target-->>App: "authorized"
+    App-->>Caller: Response
+```
+
+</details>
+
+### Flow Summary
+
+| Step | Component | Action | What Happens |
+|------|-----------|--------|--------------|
+| 1 | SPIRE → SPIFFE Helper | Issue SVID | Workload receives cryptographic identity (SPIFFE ID) |
+| 2 | Client Registration → Keycloak | Register client | Keycloak client created with `client_id = SPIFFE ID` |
+| 3 | Caller → Keycloak | Get token | Caller obtains token with `aud: Workload's SPIFFE ID` |
+| 4 | Caller → Workload | Pass token | Caller sends request with token to Workload |
+| 5 | Workload → AuthProxy | Outbound call | AuthProxy intercepts, validates token audience |
+| 6 | AuthProxy → Keycloak | Token Exchange | Token exchanged: `aud: SPIFFE ID` → `aud: target-service` |
+| 7 | AuthProxy → Target Service | Forward request | Request sent with exchanged token |
+| 8 | Target Service | Validate & respond | Token validated (`aud: target-service`), returns `"authorized"` |
+
+## Key Security Properties
+
+- **No Static Secrets** - Credentials are dynamically generated during registration
+- **Short-Lived Tokens** - JWT tokens expire and must be refreshed
+- **Self-Audience Scoping** - Tokens include the Workload's own identity as audience, enabling token exchange
+- **Same Identity for Exchange** - AuthProxy uses the Workload's credentials (same SPIFFE ID), matching the token's audience
+- **Transparent to Application** - Token exchange is handled by the sidecar; applications don't need to implement it
+- **Configurable Target** - Target audience and scopes are configured via Kubernetes Secret
 
 ## Prerequisites
 

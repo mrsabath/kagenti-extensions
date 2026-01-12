@@ -202,16 +202,27 @@ sequenceDiagram
 
 </details>
 
-### Key Points
+### What Gets Verified
 
-| Phase | Step | Description |
-|-------|------|-------------|
-| **Init** | 1 | SPIRE issues SVID with SPIFFE ID to the pod |
-| **Init** | 2 | client-registration registers with Keycloak using SPIFFE ID as client_id |
-| **Runtime** | 3 | Agent gets token from Keycloak (aud = own SPIFFE ID) |
-| **Runtime** | 4 | Agent calls auth-target; Envoy intercepts |
-| **Runtime** | 5 | ext-proc exchanges token for new audience (auth-target) |
-| **Runtime** | 6 | Request forwarded with exchanged token; auth-target validates and responds |
+| Step | Component | Action | Verification |
+|------|-----------|--------|--------------|
+| 1 | SPIRE → spiffe-helper | Issue SVID | Pod receives cryptographic identity (SPIFFE ID) |
+| 2 | client-registration → Keycloak | Register client | Keycloak client created with `client_id = SPIFFE ID` |
+| 3 | agent → Keycloak | Get token | Token issued with `aud: SPIFFE ID`, `scope: agent-spiffe-aud` |
+| 4 | agent → envoy-proxy | HTTP request | Envoy intercepts outbound traffic to auth-target |
+| 5 | ext-proc → Keycloak | Token Exchange | Token exchanged: `aud: SPIFFE ID` → `aud: auth-target` |
+| 6 | envoy-proxy → auth-target | Forward request | Request sent with exchanged token |
+| 7 | auth-target | Validate token | Token validated (`aud: auth-target`), returns `"authorized"` |
+
+### Key Security Properties
+
+| Property | How It's Achieved |
+|----------|-------------------|
+| **No hardcoded secrets** | Client credentials generated dynamically by client-registration |
+| **Identity-based auth** | SPIFFE ID serves as both pod identity and Keycloak client ID |
+| **Audience scoping** | First token is scoped to Agent; exchanged token is scoped to auth-target |
+| **Transparent to app** | Agent code just makes HTTP calls; AuthProxy handles token exchange |
+| **Audit trail** | `azp` claim shows which client (SPIFFE ID) performed the exchange |
 
 ---
 
