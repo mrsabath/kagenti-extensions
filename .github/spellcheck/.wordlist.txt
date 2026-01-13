@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 AgentPod
 Agentic
 Ansible
@@ -8,114 +7,6 @@ ARM
 Attestation
 Auditable
 AuthBridge
-=======
-APIs
-ARM
-AgentPod
-Agentic
-Ansible
-Args
-Attestation
-Auditable
-AuthBridge
-AuthBridge's
->>>>>>> 7b1edbd (Update the spellcheck words)
-AuthProxy
-AuthTarget
-Autoscaler
-Autoscaling
-<<<<<<< HEAD
-BusyBox
-CallerPod
-CI
-CipherSuites
-ClientReg
-ClusterIP
-ClusterRole
-ClusterRoleBinding
-CNI
-ConfigMap
-ConfigMaps
-CRD
-CRDs
-Cryptographic
-CustomResourceDefinition
-creds
-DaemonSet
-DefaultMode
-Dockerfile
-DSA
-ECDSA
-EmptyDir
-Env
-Envoy
-EOF
-ExtProc
-=======
-BR
-BT
-BusyBox
-CI
-CNI
-CRD
-CRDs
-CallerPod
-CipherSuites
-ClientReg
-ClusterFirst
-ClusterIP
-ClusterRole
-ClusterRoleBinding
-ConfigMap
-ConfigMaps
-CustomResourceDefinition
-DSA
-DaemonSet
-DefaultMode
-Dockerfile
-ECDSA
-EOF
-EmptyDir
-Env
-Envoy
-Envoy's
-ExtProc
-Flowchart
-GitHub's
-GitOps
->>>>>>> 7b1edbd (Update the spellcheck words)
-Github
-GoPro
-GoProc
-GoReleaser
-GroupVersion
-Gzip
-Helm
-<<<<<<< HEAD
-ImagePullSecrets
-Init
-IPv
-Istio's
-Json
-Jsonnet
-JWKS
-JWT
-JWT's
-JWTs
-=======
-IPv
-IdP
-IdPs
-ImagePullSecrets
-Init
-Istio's
-JWKS
-JWT
-JWT's
-JWTs
-Json
-Jsonnet
->>>>>>> 7b1edbd (Update the spellcheck words)
 Kagent
 Kagenti
 Kagenti's
@@ -123,28 +14,15 @@ Keycloak
 Keycloak's
 Kubebuilder
 Kubernetes
-<<<<<<< HEAD
-=======
-Kubernetes's
->>>>>>> 7b1edbd (Update the spellcheck words)
 Kustomization
 Kustomize
 LLM
 LLMs
-<<<<<<< HEAD
-Lua
-MacOS
-MCP
-MCPServer
-MCPServers
-=======
-LR
 Lua
 MCP
 MCPServer
 MCPServers
 MacOS
->>>>>>> 7b1edbd (Update the spellcheck words)
 Mermaid
 MinReadySeconds
 MutatingWebhookConfiguration
@@ -154,43 +32,22 @@ Namespace
 Namespaces
 NodePort
 OAuth
-<<<<<<< HEAD
-OAuth2
-OCI
-OIDC
-OpenID
-OpenSSH
-OS
-=======
-OAuth's
 OAuth2
 OCI
 OIDC
 OS
 OpenID
 OpenSSH
->>>>>>> 7b1edbd (Update the spellcheck words)
 Params
 PersistentVolume
 PersistentVolumeClaim
 PodDisruptionBudget
 PodSecurityPolicy
-<<<<<<< HEAD
-Podman
 PodSpec
+Podman
 Postgres
 PowerShell
 Pre
-Proc
-proc
-ProxyInit
-PullPolicy
-RBAC
-=======
-PodSpec
-Podman
-Postgres
-PowerShell
 ProxyInit
 PullPolicy
 RBAC
@@ -198,15 +55,10 @@ RFC8693
 RL
 RSA
 ReDoc
->>>>>>> 7b1edbd (Update the spellcheck words)
 ReadOnly
 ReadOnlyRootFilesystem
 ReadWriteMany
 ReadWriteOnce
-<<<<<<< HEAD
-ReDoc
-=======
->>>>>>> 7b1edbd (Update the spellcheck words)
 Redhat
 Redis
 ReplicaSet
@@ -215,63 +67,25 @@ RequestHeaderIdentityProvider
 RoleBinding
 RoleRef
 Rollout
-<<<<<<< HEAD
-RSA
-=======
 SPIFFE
 SPIFFE's
 SPIRE
 SVID
 SVID's
 SVIDs
->>>>>>> 7b1edbd (Update the spellcheck words)
 ServiceAccount
 ServiceAccounts
 ServiceMonitor
 Sidecar
 Sigstore
 Skaffold
-<<<<<<< HEAD
-SPIFFE
 SpiffeHelper
-SPIRE
-=======
-SpiffeHelper
->>>>>>> 7b1edbd (Update the spellcheck words)
 StatefulSet
 StatefulSets
 StorageClass
 StorageClassName
 Subnet
 Subnets
-<<<<<<< HEAD
-SVID
-SVIDs
-TargetPod
-TCP
-TLS
-TODO
-TODOs
-ToolHive
-Toolhive
-ToolPod
-Tornjak
-Ubuntu
-Uninstallation
-Unmarshal
-URL
-UUID
-ValidatingWebhookConfiguration
-ValueFrom
-VolumeMount
-Webhook
-Webhooks
-Workqueue
-WSL
-YAML
-YML
-=======
-TB
 TCP
 TD
 TLS
@@ -296,52 +110,30 @@ Webhooks
 Workqueue
 YAML
 YML
-accessToken
->>>>>>> 7b1edbd (Update the spellcheck words)
 admissionregistration
 agentic
 amd
 api
-<<<<<<< HEAD
-apiextensions
-apiserver
-apiVersion
-=======
 apiVersion
 apiextensions
 apiserver
->>>>>>> 7b1edbd (Update the spellcheck words)
 apps
 arg
 argo
 argoproj
 attestation
-<<<<<<< HEAD
 aud
+aud 
 auditable
 auth
 authbridge
 authenticator
 authproxy
-=======
-attests
-aud
-auditable
-auth
-authbridge
-authenticator
-authenticators
-authn
-authnz
-authproxy
-authz
-auto-populated
-auto-registered
-auto-renewed
->>>>>>> 7b1edbd (Update the spellcheck words)
 autonumber
+autonumber 
 autoscaling
 azp
+azp 
 backend
 backends
 backoff
@@ -456,11 +248,11 @@ hostnames
 http
 https
 iat
+iat 
 ico
 ietf
-infra
-ingressClass
 init
+init 
 initContainer
 initContainers
 inline
@@ -524,7 +316,6 @@ namespaced
 namespaces
 netrc
 netshoot
-newToken
 nodePort
 nolint
 nonroot
@@ -535,6 +326,7 @@ oauth
 oci
 ok
 openid
+openid 
 openssh
 originalToken
 os
@@ -543,16 +335,11 @@ over-privileged
 param
 params
 participant
-plaintext
 png
 podSelector
 podTemplateSpec
-podspec
-postgres
 pre
-pre-created
-pre-creating
-pre-provisioned
+pre 
 prebuilt
 preflight
 prepend
@@ -617,6 +404,7 @@ secretRef
 selfsigned
 semver
 sequenceDiagram
+sequenceDiagram 
 serviceAccount
 serviceAccountName
 serviceAccountsEnabled
