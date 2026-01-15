@@ -659,7 +659,7 @@ Again, get inside the `agent` container:
 
 ```bash
 # View original token (before exchange)
-kubectl exec -it deployment/agent -n authbridge -c agent -- sh -c
+kubectl exec -it deployment/agent -n authbridge -c agent -- sh
 ```
 
 Execute the following commands to get details of the first token:
@@ -683,8 +683,7 @@ curl -s -H "Authorization: Bearer $TOKEN" http://auth-target-service:8081/test
 exit
 ```
 
-Now review the logs of the `auth-target` container to demonstrate the details of the exchanged 
-token:
+Now review the logs of the `auth-target` container to show details of the exchanged token:
 
 ```bash
 # View exchanged token from logs
