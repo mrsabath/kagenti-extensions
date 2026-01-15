@@ -6,14 +6,14 @@
 
 ## The Rise of AI Agents—And Their Security Challenge
 
-AI agents are transforming how we build applications. Instead of monolithic services, modern AI systems are composed of autonomous **agents** that orchestrate calls to specialized **tools**—from Slack messaging to GitHub issue management to weather APIs.
+AI agents are transforming how we build applications. Instead of monolithic services, modern AI systems are composed of autonomous **agents** that orchestrate calls to specialized **tools**—from messaging platforms and code repositories to databases, cloud services, payment processors, and internal APIs.
 
 But with this power comes a critical security challenge: **How do AI agents securely authenticate when calling tools?**
 
 ```
 ┌─────────────────┐         ┌──────────────────┐         ┌─────────────────┐
-│  Slack Research │────────►│   MCP Gateway    │────────►│   Slack Tool    │
-│     Agent       │         │   (validates?)   │         │   (API access)  │
+│   Research      │────────►│   MCP Gateway    │────────►│   External      │
+│     Agent       │         │   (validates?)   │         │   Tool / API    │
 │                 │         │                  │         │                 │
 │   Who am I?     │         │   Can I trust    │         │   Who's calling │
 │   How do I      │         │   this agent?    │         │   me? Should I  │
@@ -26,9 +26,9 @@ But with this power comes a critical security challenge: **How do AI agents secu
 
 ```mermaid
 flowchart LR
-    Agent["🤖 Slack Research<br/>Agent<br/><br/>Who am I?<br/>How do I prove it?"]
+    Agent["🤖 Research<br/>Agent<br/><br/>Who am I?<br/>How do I prove it?"]
     Gateway["🚪 MCP Gateway<br/><br/>Can I trust<br/>this agent?"]
-    Tool["🔧 Slack Tool<br/>(API access)<br/><br/>Who's calling?<br/>Should I grant access?"]
+    Tool["🔧 External Tool<br/>(API access)<br/><br/>Who's calling?<br/>Should I grant access?"]
     
     Agent -->|"???"| Gateway -->|"???"| Tool
     
@@ -50,7 +50,9 @@ Traditional approaches—static API keys, shared secrets, long-lived tokens—cr
 
 ## AuthBridge: Zero-Trust for Agentic Platforms
 
-**AuthBridge** solves these challenges by bringing zero-trust principles to agent-tool communication. It's a core component of the [Kagenti Agentic Platform](https://github.com/kagenti/kagenti), providing:
+**AuthBridge** solves these challenges by bringing zero-trust principles to agent-tool communication. While it's a core component of the [Kagenti Agentic Platform](https://github.com/kagenti/kagenti), AuthBridge is designed as a **standalone service** that can be deployed independently in any Kubernetes environment—whether you're using Kagenti or building your own agentic infrastructure.
+
+AuthBridge provides:
 
 | Capability | What It Means for Agents |
 |------------|--------------------------|
@@ -152,12 +154,21 @@ flowchart TB
 **Agent code WITHOUT AuthBridge:**
 ```python
 # Developer must handle all of this 😰
-class SlackAgent:
+class MyAgent:
     def __init__(self):
-        self.client_id = os.getenv("SLACK_CLIENT_ID")
-        self.client_secret = os.getenv("SLACK_CLIENT_SECRET")
+        self.client_id = os.getenv("TOOL_CLIENT_ID")
+        self.client_secret = os.getenv("TOOL_CLIENT_SECRET")
         self.token = None
         self.token_expiry = None
+        self._start_token_refresh_loop()  # Need background refresh!
+    
+    def _start_token_refresh_loop(self):
+        # Periodic token refresh requires an event loop 😓
+        async def refresh_loop():
+            while True:
+                await asyncio.sleep(self._time_until_refresh())
+                await self._refresh_token()
+        asyncio.create_task(refresh_loop())
     
     def get_token(self):
         if self.token_expiry and time.time() < self.token_expiry:
@@ -168,21 +179,21 @@ class SlackAgent:
         self.token_expiry = time.time() + response.json()["expires_in"]
         return self.token
     
-    def call_slack_tool(self, action):
+    def call_tool(self, action):
         token = self.get_token()
-        # Exchange token for Slack audience...
-        exchanged_token = self.exchange_token(token, "slack-tool")
-        return requests.get(SLACK_TOOL_URL, 
+        # Exchange token for tool audience...
+        exchanged_token = self.exchange_token(token, "target-tool")
+        return requests.get(TOOL_URL, 
                           headers={"Authorization": f"Bearer {exchanged_token}"})
 ```
 
 **Agent code WITH AuthBridge:**
 ```python
 # Developer focuses on agent logic 😊
-class SlackAgent:
-    def call_slack_tool(self, action):
+class MyAgent:
+    def call_tool(self, action):
         # Just make the call - sidecars handle everything!
-        return requests.get(SLACK_TOOL_URL, 
+        return requests.get(TOOL_URL, 
                           headers={"Authorization": f"Bearer {self.token}"})
 ```
 
