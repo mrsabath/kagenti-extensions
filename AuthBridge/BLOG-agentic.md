@@ -309,11 +309,11 @@ spiffe://localtest.me/ns/team/sa/weather-service
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           AGENT POD                                         │
+│                               AGENT POD                                     │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────────────┐  │
 │  │   spiffe-   │  │   client-   │  │          AuthProxy Sidecar          │  │
 │  │   helper    │─►│registration │  │  ┌───────────┐  ┌────────────────┐  │  │
-│  │  (gets SVID)│  │(Keycloak)   │  │  │auth-proxy │  │envoy + ext-proc│  │  │
+│  │  (gets SVID)│  │(Keycloak)   │  │  │  envoy    │  │    ext-proc    │  │  │
 │  └─────────────┘  └──────┬──────┘  │  └───────────┘  └────────────────┘  │  │
 │                          │         └─────────────────────────────────────┘  │
 │                          ▼                                                  │
@@ -610,12 +610,10 @@ kubectl wait --for=condition=available --timeout=120s deployment/auth-target -n 
 
 #### 4. Test Agent → Tool Flow
 
+Get inside the `agent` container:
+
 ```bash
-<<<<<<< HEAD
 kubectl exec deployment/agent -n authbridge -c agent -- sh -c '
-=======
-kubectl exec deployment/caller -n authbridge -c caller -- sh -c '
->>>>>>> 46cc465 (Add developer focus)
 # Agent credentials (auto-populated by sidecars!)
 CLIENT_ID=$(cat /shared/client-id.txt)
 CLIENT_SECRET=$(cat /shared/client-secret.txt)
@@ -631,11 +629,13 @@ TOKEN=$(curl -s http://keycloak-service.keycloak.svc:8080/realms/demo/protocol/o
 echo ""
 echo "Agent token audience (before exchange):"
 echo $TOKEN | cut -d. -f2 | tr "_-" "/+" | { read p; echo "${p}=="; } | base64 -d | jq -r "{aud, azp, scope}"
+```
 
-echo ""
+Now, ready to use this token to call the `auth-target` service:
+
+```shell
 echo "Calling auth-target (token exchange happens transparently)..."
 curl -H "Authorization: Bearer $TOKEN" http://auth-target-service:8081/test
-'
 ```
 
 **Expected Output:**
@@ -655,9 +655,16 @@ authorized
 
 #### 5. Inspect Token Claims (Before and After Exchange)
 
+Again, get inside the `agent` container:
+
 ```bash
 # View original token (before exchange)
-kubectl exec deployment/agent -n authbridge -c agent -- sh -c '
+kubectl exec -it deployment/agent -n authbridge -c agent -- sh -c
+```
+
+Execute the following commands to get details of the first token:
+
+```shell
 CLIENT_ID=$(cat /shared/client-id.txt)
 CLIENT_SECRET=$(cat /shared/client-secret.txt)
 TOKEN=$(curl -s http://keycloak-service.keycloak.svc:8080/realms/demo/protocol/openid-connect/token \
@@ -673,8 +680,13 @@ echo $TOKEN | cut -d"." -f2 | tr "_-" "/+" | { read p; echo "${p}=="; } | base64
 echo ""
 echo "Calling auth-target..."
 curl -s -H "Authorization: Bearer $TOKEN" http://auth-target-service:8081/test
-'
+exit
+```
 
+Now review the logs of the `auth-target` container to demonstrate the details of the exchanged 
+token:
+
+```bash
 # View exchanged token from logs
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -760,10 +772,10 @@ The AuthBridge demo deploys the following components:
 │  │                                                                     │    │
 │  │  ┌───────────────────────────────────────────────────────────────┐  │    │
 │  │  │                    AuthProxy Sidecar                          │  │    │
-│  │  │  ┌────────────┐  ┌──────────────┐  ┌────────────────────────┐ │  │    │
-│  │  │  │ auth-proxy │  │ envoy-proxy  │  │       ext-proc         │ │  │    │
-│  │  │  │  (8080)    │  │   (15123)    │  │  (token exchange)      │ │  │    │
-│  │  │  └────────────┘  └──────────────┘  └────────────────────────┘ │  │    │
+│  │  │       ┌──────────────┐  ┌────────────────────────┐            │  │    │
+│  │  │       │ envoy-proxy  │  │       ext-proc         │            │  │    │
+│  │  │       │   (15123)    │  │  (token exchange)      │            │  │    │
+│  │  │       └──────────────┘  └────────────────────────┘            │  │    │
 │  │  └───────────────────────────────────────────────────────────────┘  │    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
 │                                      │                                      │
