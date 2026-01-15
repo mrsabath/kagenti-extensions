@@ -21,8 +21,7 @@ But with this power comes a critical security challenge: **How do AI agents secu
 └─────────────────┘         └──────────────────┘         └─────────────────┘
 ```
 
-<details>
-<summary><b>📊 Mermaid Diagram</b></summary>
+## 📊 Mermaid Diagram
 
 ```mermaid
 flowchart LR
@@ -36,8 +35,6 @@ flowchart LR
     style Gateway fill:#fff3e0
     style Tool fill:#e8f5e9
 ```
-
-</details>
 
 Traditional approaches—static API keys, shared secrets, long-lived tokens—create significant security risks in agentic systems:
 
@@ -105,8 +102,7 @@ With AuthBridge, all identity and authentication concerns are handled by **sidec
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-<details>
-<summary><b>📊 Mermaid Comparison Diagram</b></summary>
+## 📊 Mermaid Comparison Diagram
 
 ```mermaid
 flowchart TB
@@ -147,8 +143,6 @@ flowchart TB
     style Sidecar fill:#fff3e0
 ```
 
-</details>
-
 ### What This Means in Practice
 
 **Agent code WITHOUT AuthBridge:**
@@ -188,6 +182,7 @@ class MyAgent:
 ```
 
 **Agent code WITH AuthBridge:**
+
 ```python
 # Developer focuses on agent logic 😊
 class MyAgent:
@@ -198,6 +193,7 @@ class MyAgent:
 ```
 
 The agent developer:
+
 - **Doesn't need to know** how tokens are obtained
 - **Doesn't need to implement** token refresh
 - **Doesn't need to understand** audience transformation
@@ -228,8 +224,7 @@ In the Kagenti platform, the authorization pattern enables:
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-<details>
-<summary><b>📊 Mermaid Flowchart (Steps)</b></summary>
+### 📊 Mermaid Flowchart (Steps)</b></summary>
 
 ```mermaid
 flowchart TB
@@ -250,10 +245,7 @@ flowchart TB
     style Step6 fill:#e8f5e9
 ```
 
-</details>
-
-<details>
-<summary><b>📊 Mermaid Sequence Diagram (Detailed)</b></summary>
+### 📊 Mermaid Sequence Diagram (Detailed)
 
 ```mermaid
 sequenceDiagram
@@ -286,8 +278,6 @@ sequenceDiagram
     Tool->>Tool: Validate token (aud: slack-tool) ✓
     Tool-->>Agent: Execute action & return result
 ```
-
-</details>
 
 ---
 
@@ -333,8 +323,7 @@ spiffe://localtest.me/ns/team/sa/weather-service
                     └─────────────────────────────┘
 ```
 
-<details>
-<summary><b>📊 Mermaid Diagram</b></summary>
+### 📊 Mermaid Diagram
 
 ```mermaid
 flowchart TB
@@ -367,9 +356,8 @@ flowchart TB
     style Sidecar fill:#ffe0b2
 ```
 
-</details>
-
 **Benefits for Agents:**
+
 - ✅ **No pre-provisioned credentials** - Agents self-register at startup
 - ✅ **Unique identity per agent instance** - Each pod gets its own SPIFFE ID
 - ✅ **Automatic credential rotation** - SVIDs are short-lived and auto-renewed
@@ -394,8 +382,7 @@ When an agent calls a tool, the AuthProxy sidecar transparently exchanges the ag
                                    └─────────────────┘
 ```
 
-<details>
-<summary><b>📊 Mermaid Diagram</b></summary>
+### 📊 Mermaid Diagram
 
 ```mermaid
 flowchart LR
@@ -418,9 +405,8 @@ flowchart LR
     style KC fill:#fff3e0
 ```
 
-</details>
-
 **Benefits for Tool Access:**
+
 - ✅ **Transparent to agents** - Agent code doesn't know about token exchange
 - ✅ **Proper audience scoping** - Each tool receives tokens specifically for it
 - ✅ **Least privilege** - Agents can only access tools they're authorized for
@@ -443,8 +429,7 @@ spiffe://localtest.me/ns/team/sa/github-issue-agent
 spiffe://localtest.me/ns/team/sa/weather-service
 ```
 
-<details>
-<summary><b>📊 Mermaid Identity Diagram</b></summary>
+### 📊 Mermaid Identity Diagram
 
 ```mermaid
 flowchart TB
@@ -468,8 +453,6 @@ flowchart TB
     style Tools fill:#fff3e0
 ```
 
-</details>
-
 ### 🔒 Secure Delegation
 
 Token exchange enforces that agents can only access tools they're authorized for:
@@ -490,8 +473,7 @@ Every step in the agent-tool chain is verified:
 4. **Keycloak verifies** the exchange is authorized
 5. **Tool verifies** the exchanged token before execution
 
-<details>
-<summary><b>📊 Mermaid Trust Chain Diagram</b></summary>
+### 📊 Mermaid Trust Chain Diagram
 
 ```mermaid
 flowchart LR
@@ -528,8 +510,6 @@ flowchart LR
     style Keycloak fill:#fff3e0
     style Tool fill:#fce4ec
 ```
-
-</details>
 
 ### 📋 Complete Audit Trail
 
@@ -592,6 +572,7 @@ python setup_keycloak.py
 ```
 
 The setup script creates:
+
 - `demo` realm
 - `auth-target` client (token exchange target)
 - `agent-spiffe-aud` scope (realm default - adds Agent's SPIFFE ID to all tokens)
@@ -718,8 +699,7 @@ kubectl logs deployment/auth-target -n authbridge | grep -A 5 "JWT Debug"
 | **Scaling** | Operational burden | Automatic with pod lifecycle |
 | **Developer Burden** | Must handle auth logic | Focus on agent logic only |
 
-<details>
-<summary><b>📊 Mermaid Comparison Diagram</b></summary>
+## 📊 Mermaid Comparison Diagram
 
 ```mermaid
 flowchart TB
@@ -748,8 +728,6 @@ flowchart TB
     style Traditional fill:#ffebee
     style AuthBridge fill:#e8f5e9
 ```
-
-</details>
 
 ---
 
@@ -813,8 +791,7 @@ In the age of AI agents, security can't be an afterthought—but it also shouldn
 4. **Continuous Verification** - Every step in the chain is authenticated
 5. **Developer Freedom** - Agent developers focus on building agents, not managing credentials
 
-<details>
-<summary><b>📊 Mermaid Summary Diagram</b></summary>
+## 📊 Mermaid Summary Diagram
 
 ```mermaid
 flowchart LR
@@ -849,8 +826,6 @@ flowchart LR
     style Delegation fill:#fff3e0
     style Developer fill:#fce4ec
 ```
-
-</details>
 
 The result: AI agents can securely access tools without static credentials, over-privileged tokens, or manual credential management—and agent developers can focus on what they do best: **building intelligent agents**.
 
