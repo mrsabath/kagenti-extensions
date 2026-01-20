@@ -47,7 +47,7 @@ Traditional approaches—static API keys, shared secrets, long-lived tokens—cr
 
 ## AuthBridge: Zero-Trust for Agentic Platforms
 
-**AuthBridge** solves these challenges by bringing zero-trust principles to agent-tool communication. While it's a core component of the [Kagenti Agentic Platform](https://github.com/kagenti/kagenti), AuthBridge is designed as a **standalone service** that can be deployed independently in any Kubernetes environment—whether you're using Kagenti or building your own agentic infrastructure.
+**AuthBridge** solves these challenges by bringing zero-trust principles to agent-tool communication. While it's a core component of the [Kagenti Agentic Platform](https://github.com/kagenti/kagenti), AuthBridge is designed as a **standalone, general-purpose authentication solution** for any Kubernetes workload—whether you're securing AI agents, microservices, or any service-to-service communication. This blog focuses on how AuthBridge enables secure agent-tool interactions in agentic platforms.
 
 AuthBridge provides:
 
@@ -215,12 +215,13 @@ In the Kagenti platform, the authorization pattern enables:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│  0. proxy-init sets up iptables to redirect outbound traffic (excludes Keycloak port)   │
 │  1. SPIFFE Helper obtains SVID from SPIRE Agent for the Agent workload                  │
 │  2. Client Registration registers Agent as Keycloak client using SPIFFE ID              │
 │  3. Agent gets token from Keycloak (aud: agent's SPIFFE ID via agent-spiffe-aud scope)  │
 │  4. Agent sends request to Tool with token                                              │
-│  5. Envoy + Ext Proc intercepts, exchanges token (aud: tool's expected audience)        │
-│  6. Tool validates token and executes the requested action                              │
+│  5. AuthProxy (Envoy + Ext Proc) intercepts, validates, and exchanges token             │
+│  6. Tool validates token (aud: tool's audience) and executes the requested action       │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -228,21 +229,23 @@ In the Kagenti platform, the authorization pattern enables:
 
 ```mermaid
 flowchart TB
+    Step0["0️⃣ proxy-init sets up iptables<br/>(redirects traffic, excludes Keycloak)"]
     Step1["1️⃣ SPIFFE Helper obtains SVID<br/>from SPIRE Agent"]
     Step2["2️⃣ Client Registration registers Agent<br/>as Keycloak client (SPIFFE ID)"]
     Step3["3️⃣ Agent gets token from Keycloak<br/>(aud: agent's SPIFFE ID)"]
     Step4["4️⃣ Agent sends request to Tool<br/>with token"]
-    Step5["5️⃣ AuthProxy exchanges token<br/>(aud: tool's audience)"]
+    Step5["5️⃣ AuthProxy intercepts & exchanges token<br/>(aud: tool's audience)"]
     Step6["6️⃣ Tool validates token<br/>and executes action"]
     
-    Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6
+    Step0 --> Step1 --> Step2 --> Step3 --> Step4 --> Step5 --> Step6
     
+    style Step0 fill:#f3e5f5
     style Step1 fill:#e3f2fd
     style Step2 fill:#e3f2fd
     style Step3 fill:#fff3e0
     style Step4 fill:#fff3e0
     style Step5 fill:#e8f5e9
-    style Step6 fill:#e8f5e9
+    style Step6 fill:#c8e6c9
 ```
 
 ### 📊 Mermaid Sequence Diagram (Detailed)
@@ -254,7 +257,7 @@ sequenceDiagram
     participant Helper as SPIFFE Helper
     participant Reg as Client Registration
     participant Agent as Slack Research Agent
-    participant Proxy as AuthProxy (Envoy)
+    participant Proxy as AuthProxy (Envoy + Ext Proc)
     participant KC as Keycloak
     participant Tool as Slack Tool
 
@@ -302,9 +305,9 @@ spiffe://localtest.me/ns/team/sa/weather-service
 │                               AGENT POD                                     │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────────────┐  │
 │  │   spiffe-   │  │   client-   │  │          AuthProxy Sidecar          │  │
-│  │   helper    │─►│registration │  │  ┌───────────┐  ┌────────────────┐  │  │
-│  │  (gets SVID)│  │(Keycloak)   │  │  │  envoy    │  │    ext-proc    │  │  │
-│  └─────────────┘  └──────┬──────┘  │  └───────────┘  └────────────────┘  │  │
+│  │   helper    │─►│registration │  │     (Envoy + Ext Proc)              │  │
+│  │  (gets SVID)│  │(Keycloak)   │  │  Intercepts, validates, exchanges   │  │
+│  └─────────────┘  └──────┬──────┘  └─────────────────────────────────────┘  │
 │                          │         └─────────────────────────────────────┘  │
 │                          ▼                                                  │
 │               ┌─────────────────────┐                                       │
@@ -332,10 +335,7 @@ flowchart TB
         Reg["📝 Client Registration"]
         Shared["/shared/<br/>- client-id.txt<br/>- client-secret.txt"]
         Agent["🧠 Agent Container<br/>(reads credentials)"]
-        subgraph Sidecar["AuthProxy Sidecar"]
-            AuthProxy["auth-proxy"]
-            Envoy["envoy + ext-proc"]
-        end
+        AuthProxy["AuthProxy Sidecar<br/>(Envoy + Ext Proc)"]
         
         Helper -->|"SVID"| Reg
         Reg -->|"credentials"| Shared
@@ -365,15 +365,15 @@ flowchart TB
 
 ### Component 2: AuthProxy for Tool Access
 
-When an agent calls a tool, the AuthProxy sidecar transparently exchanges the agent's token for one the tool will accept:
+When an agent calls a tool, the AuthProxy sidecar (Envoy + Ext Proc) transparently exchanges the agent's token for one the tool will accept. AuthProxy intercepts outbound traffic via iptables, validates the token, and performs OAuth 2.0 Token Exchange with Keycloak—all without any changes to the agent code.
 
 ```
 ┌─────────────────┐               ┌────────────────────────┐              ┌─────────────────┐
-│ Slack Research  │ ── Token A ──►│      AuthProxy         │── Token B ──►│   Slack Tool    │ ✅
-│    Agent        │               │  1. Validate agent     │              │                 │
-│                 │               │  2. Exchange for tool  │              │ (expects        │
-│ Token:          │               │  3. Forward request    │              │  aud: slack-tool│
-│ (aud: agent)    │               │                        │              │                 │
+│ Slack Research  │ ── Token A ──►│    Envoy + Ext Proc    │── Token B ──►│   Slack Tool    │ ✅
+│    Agent        │               │  1. Intercept request  │              │                 │
+│                 │               │  2. Validate token     │              │ (expects        │
+│ Token:          │               │  3. Exchange token     │              │  aud: slack-tool│
+│ (aud: agent)    │               │  4. Forward request    │              │                 │
 └─────────────────┘               └────────────────────────┘              └─────────────────┘
                                             │
                                             ▼ Token Exchange (RFC 8693)
@@ -388,7 +388,7 @@ When an agent calls a tool, the AuthProxy sidecar transparently exchanges the ag
 flowchart LR
     subgraph AgentPod["Agent Pod"]
         Agent["🤖 Slack Research<br/>Agent<br/>(aud: agent)"]
-        Proxy["🔄 AuthProxy<br/>1. Validate<br/>2. Exchange<br/>3. Forward"]
+        Proxy["🔄 AuthProxy<br/>(Envoy + Ext Proc)<br/>1. Intercept<br/>2. Validate<br/>3. Exchange<br/>4. Forward"]
     end
     
     KC["🔑 Keycloak"]
@@ -538,9 +538,25 @@ Ready to see AuthBridge in action with agents and tools?
 
 ### Prerequisites
 
+Before running the demo, ensure you have:
+
+- **Kubernetes cluster** (Kind recommended for local development)
 - **Kagenti Platform** installed ([installation guide](https://github.com/kagenti/kagenti/blob/main/docs/install.md))
-- **SPIRE** running (included in Kagenti)
-- **Keycloak** deployed (included in Kagenti)
+  - Includes **SPIRE** (for SPIFFE identities)
+  - Includes **Keycloak** (for OAuth2/OIDC)
+- **Docker/Podman** for building images
+
+**Verify prerequisites:**
+```bash
+# Check SPIRE is running
+kubectl get pods -n spire-mgmt
+
+# Check Keycloak is running
+kubectl get pods -n keycloak
+
+# Verify SPIRE agent is ready
+kubectl wait --for=condition=ready pod -l app=spire-agent -n spire-mgmt --timeout=60s
+```
 
 ### Quick Start
 
@@ -574,9 +590,11 @@ python setup_keycloak.py
 The setup script creates:
 
 - `demo` realm
-- `auth-target` client (token exchange target)
-- `agent-spiffe-aud` scope (realm default - adds Agent's SPIFFE ID to all tokens)
+- `auth-target` client (token exchange target audience)
+- `agent-spiffe-aud` scope (realm default - automatically adds Agent's SPIFFE ID to all tokens' audience)
 - `auth-target-aud` scope (for exchanged tokens)
+
+**Important:** The `agent-spiffe-aud` scope is a **realm default scope** that enables the security model. It ensures that every token issued includes the agent's SPIFFE ID in the audience claim, which authorizes the AuthProxy (using the same credentials) to exchange tokens on behalf of the agent.
 
 #### 3. Deploy the Demo
 
@@ -677,12 +695,15 @@ kubectl logs deployment/auth-target -n authbridge | grep -A 5 "JWT Debug"
 
 **Token Claims Summary:**
 
-| Claim | Before Exchange | After Exchange |
-|-------|-----------------|----------------|
-| `aud` | Agent's SPIFFE ID | `auth-target` |
-| `azp` | Agent's SPIFFE ID | Agent's SPIFFE ID |
-| `scope` | `agent-spiffe-aud profile email` | `openid auth-target-aud` |
-| `iss` | Keycloak realm | Keycloak realm (same) |
+| Claim | Before Exchange | After Exchange | Description |
+|-------|-----------------|----------------|-------------|
+| `aud` | Agent's SPIFFE ID | `auth-target` | Audience - who the token is for |
+| `azp` | Agent's SPIFFE ID | Agent's SPIFFE ID | Authorized party - who performed the exchange |
+| `scope` | `agent-spiffe-aud profile email` | `openid auth-target-aud` | Scopes granted |
+| `iss` | Keycloak realm | Keycloak realm (same) | Issuer - who issued the token |
+| `sub` | Service account UUID | Service account UUID (same) | Subject - the identity |
+| `exp` | Unix timestamp | Unix timestamp (new) | Expiration time |
+| `iat` | Unix timestamp | Unix timestamp (new) | Issued at time |
 
 ---
 
@@ -742,17 +763,18 @@ The AuthBridge demo deploys the following components:
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
 │  │                    AGENT POD (namespace: authbridge)                │    │
 │  │                                                                     │    │
+│  │  ┌──────────────────────────────────────────────────────────────┐   │    │
+│  │  │  proxy-init (init container) - sets up iptables             │   │    │
+│  │  └──────────────────────────────────────────────────────────────┘   │    │
+│  │                                                                     │    │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌──────────────────────────────┐ │    │
 │  │  │    agent    │  │   spiffe-   │  │      client-registration     │ │    │
 │  │  │ (netshoot)  │  │   helper    │  │  (registers with Keycloak)   │ │    │
 │  │  └─────────────┘  └─────────────┘  └──────────────────────────────┘ │    │
 │  │                                                                     │    │
 │  │  ┌───────────────────────────────────────────────────────────────┐  │    │
-│  │  │                    AuthProxy Sidecar                          │  │    │
-│  │  │       ┌──────────────┐  ┌────────────────────────┐            │  │    │
-│  │  │       │ envoy-proxy  │  │       ext-proc         │            │  │    │
-│  │  │       │   (15123)    │  │  (token exchange)      │            │  │    │
-│  │  │       └──────────────┘  └────────────────────────┘            │  │    │
+│  │  │              AuthProxy Sidecar (Envoy + Ext Proc)             │  │    │
+│  │  │         Intercepts, validates, and exchanges tokens           │  │    │
 │  │  └───────────────────────────────────────────────────────────────┘  │    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
 │                                      │                                      │
@@ -833,18 +855,23 @@ The result: AI agents can securely access tools without static credentials, over
 
 ## Resources
 
-- **[AuthBridge Demo Guide](./demo.md)** - Complete step-by-step demo instructions
+### AuthBridge Documentation
+- **[AuthBridge Demo Guide](./demo.md)** - Complete step-by-step demo instructions with troubleshooting
 - **[AuthBridge README](./README.md)** - Architecture overview and component documentation
-- **[AuthProxy Documentation](./AuthProxy/README.md)** - Token validation and exchange proxy
+- **[AuthProxy Documentation](./AuthProxy/README.md)** - Token validation and exchange proxy (Envoy + Ext Proc)
 - **[Client Registration](./client-registration/README.md)** - Automatic Keycloak client registration with SPIFFE
-- **[Kagenti Installation](https://github.com/kagenti/kagenti/blob/main/docs/install.md)** - Platform setup guide
+
+### Platform & Standards
+- **[Kagenti Installation](https://github.com/kagenti/kagenti/blob/main/docs/install.md)** - Platform setup guide (includes SPIRE and Keycloak)
 - **[SPIFFE/SPIRE Documentation](https://spiffe.io/docs/latest/)** - Workload identity framework
 - **[OAuth 2.0 Token Exchange (RFC 8693)](https://datatracker.ietf.org/doc/html/rfc8693)** - Token exchange standard
+- **[Keycloak Documentation](https://www.keycloak.org/documentation)** - Identity and access management
+
+### Key Concepts
+- **AuthProxy Components**: Envoy (intercepts traffic) + Ext Proc (performs token exchange)
+- **Security Model**: The `agent-spiffe-aud` scope (realm default) adds the agent's SPIFFE ID to token audience, enabling secure token exchange
+- **Transparent Operation**: All token validation and exchange happens in the sidecar, completely transparent to agent code
 
 ---
 
 *AuthBridge is part of the [Kagenti Agentic Platform](https://github.com/kagenti/kagenti), providing zero-trust identity and authorization infrastructure for AI agents—so developers can focus on building agents, not managing credentials.*
-<<<<<<< HEAD
-=======
-
->>>>>>> 46cc465 (Add developer focus)
