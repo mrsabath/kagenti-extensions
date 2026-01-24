@@ -95,7 +95,10 @@ func BuildClientRegistrationContainer(clientID, name, namespace string) corev1.C
 func BuildClientRegistrationContainerWithSpireOption(clientID, name, namespace string, spireEnabled bool) corev1.Container {
 	builderLog.Info("building ClientRegistration Container", "spireEnabled", spireEnabled)
 
-	clientId := namespace + "/" + name
+	clientId := clientID
+	if clientId == "" {
+		clientId = namespace + "/" + name
+	}
 
 	// Base environment variables
 	env := []corev1.EnvVar{
