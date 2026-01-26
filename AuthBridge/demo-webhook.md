@@ -110,7 +110,7 @@ This creates:
 - `auth-target-aud` scope (adds "auth-target" to exchanged tokens)
 - `alice` demo user (for testing subject preservation)
 
-### Step 2: Create Namespace and ConfigMaps (Optional, if using `team1` namespace)
+### Step 2: Create Namespace and ConfigMaps (Optional - already done for team1 by full-deploy.sh)
 
 The `team1` namespace and all the configmaps are deployed during `./scripts/full-deploy.sh`
 script execution.
