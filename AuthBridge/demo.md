@@ -345,7 +345,7 @@ TOKEN=$(curl -sX POST http://keycloak-service.keycloak.svc:8080/realms/demo/prot
   -d "client_secret=$CLIENT_SECRET" | jq -r '.access_token')
 
 echo "=== SERVICE ACCOUNT TOKEN (Before Exchange) ==="
-echo $TOKEN | cut -d'.' -f2 | tr '_-' '/+' | { read p; echo "${p}=="; } | base64 -d | jq '{aud, azp, sub, preferred_username, scope}'
+echo $TOKEN | cut -d'.' -f2 | tr '_-' '/+' | { read p; echo "${p}=="; } | base64 -d | jq '{aud, azp, iss,sub, preferred_username, scope}'
 
 # Call auth-target (AuthProxy will exchange token)
 echo ""
@@ -368,7 +368,7 @@ USER_TOKEN=$(curl -sX POST http://keycloak-service.keycloak.svc:8080/realms/demo
   -d 'password=alice123' | jq -r '.access_token')
 
 echo "=== USER TOKEN (Before Exchange) - User: alice ==="
-echo $USER_TOKEN | cut -d'.' -f2 | tr '_-' '/+' | { read p; echo "${p}=="; } | base64 -d | jq '{aud, azp, sub, preferred_username, scope}'
+echo $USER_TOKEN | cut -d'.' -f2 | tr '_-' '/+' | { read p; echo "${p}=="; } | base64 -d | jq '{aud, azp, iss, sub, preferred_username, scope}'
 
 # Call auth-target with alice's token
 echo ""
@@ -429,7 +429,7 @@ TOKEN=$(curl -s http://keycloak-service.keycloak.svc:8080/realms/demo/protocol/o
   -d "client_secret=$CLIENT_SECRET" | jq -r ".access_token")
 
 echo "=== SERVICE ACCOUNT TOKEN (Before Exchange) ==="
-echo $TOKEN | cut -d"." -f2 | tr "_-" "/+" | { read p; echo "${p}=="; } | base64 -d | jq "{aud, azp, sub, preferred_username, scope}"
+echo $TOKEN | cut -d"." -f2 | tr "_-" "/+" | { read p; echo "${p}=="; } | base64 -d | jq "{aud, azp, iss, sub, preferred_username, scope}"
 
 echo ""
 echo "Calling auth-target... (token exchange happens)"
@@ -460,7 +460,7 @@ USER_TOKEN=$(curl -s http://keycloak-service.keycloak.svc:8080/realms/demo/proto
   -d "password=alice123" | jq -r ".access_token")
 
 echo "=== USER TOKEN - alice (Before Exchange) ==="
-echo $USER_TOKEN | cut -d"." -f2 | tr "_-" "/+" | { read p; echo "${p}=="; } | base64 -d | jq "{aud, azp, sub, preferred_username, scope}"
+echo $USER_TOKEN | cut -d"." -f2 | tr "_-" "/+" | { read p; echo "${p}=="; } | base64 -d | jq "{aud, azp, iss, sub, preferred_username, scope}"
 
 echo ""
 echo "Calling auth-target with alice token... (token exchange happens)"
