@@ -137,11 +137,12 @@ def get_or_create_user(keycloak_admin, user_config):
     """Create a demo user if it doesn't exist."""
     username = user_config["username"]
     
-    # Check if user exists
+    # Check if user exists (get_users may be fuzzy, so filter for exact username)
     users = keycloak_admin.get_users({"username": username})
-    if users:
+    exact_users = [u for u in users if u.get("username") == username]
+    if exact_users:
         print(f"User '{username}' already exists.")
-        return users[0]["id"]
+        return exact_users[0]["id"]
     
     # Create user
     try:
