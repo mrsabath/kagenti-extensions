@@ -495,7 +495,7 @@ kubectl logs deployment/auth-target -n authbridge --tail=10 | grep -E "(Subject|
 #### Why Subject Preservation Matters
 
 1. **User Attribution:** The target service knows the request is from alice, not just "some agent"
-2. **Audit Trail:** `sub=alice`, `azp=agent-spiffe-id` shows the full delegation chain
+2. **Audit Trail:** `sub=<alice user id>`, `preferred_username=alice`, `azp=agent-spiffe-id` shows the full delegation chain
 3. **Authorization Decisions:** Target can apply user-specific policies (alice's permissions)
 4. **Compliance:** User actions are traceable even through agent intermediaries
 
