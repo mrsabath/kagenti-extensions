@@ -15,17 +15,18 @@ The demo deploys the following components:
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
 │  │                    AGENT POD (namespace: authbridge)                │    │
 │  │                                                                     │    │
+│  │  ┌──────────────────────────────────────────────────────────────┐   │    │
+│  │  │  proxy-init (init container) - sets up iptables              │   │    │
+│  │  └──────────────────────────────────────────────────────────────┘   │    │
+│  │                                                                     │    │
 │  │  ┌─────────────┐  ┌─────────────┐  ┌──────────────────────────────┐ │    │
 │  │  │    agent    │  │   spiffe-   │  │      client-registration     │ │    │
 │  │  │ (netshoot)  │  │   helper    │  │  (registers with Keycloak)   │ │    │
 │  │  └─────────────┘  └─────────────┘  └──────────────────────────────┘ │    │
 │  │                                                                     │    │
 │  │  ┌───────────────────────────────────────────────────────────────┐  │    │
-│  │  │                    AuthProxy Sidecar                          │  │    │
-│  │  │  ┌────────────┐  ┌──────────────┐  ┌────────────────────────┐ │  │    │
-│  │  │  │ auth-proxy │  │ envoy-proxy  │  │       ext-proc         │ │  │    │
-│  │  │  │  (8080)    │  │   (15123)    │  │  (token exchange)      │ │  │    │
-│  │  │  └────────────┘  └──────────────┘  └────────────────────────┘ │  │    │
+│  │  │              AuthProxy Sidecar (Envoy + Ext Proc)             │  │    │
+│  │  │         Intercepts, validates, and exchanges tokens           │  │    │
 │  │  └───────────────────────────────────────────────────────────────┘  │    │
 │  └─────────────────────────────────────────────────────────────────────┘    │
 │                                      │                                      │
@@ -59,11 +60,11 @@ The demo deploys the following components:
 flowchart TB
     subgraph Cluster["KUBERNETES CLUSTER"]
         subgraph AgentPod["AGENT POD<br/>(namespace: authbridge)"]
+            proxyinit["proxy-init<br/>(init container)<br/>sets up iptables"]
             agent["agent<br/>(netshoot)"]
             spiffe["spiffe-helper"]
             clientreg["client-registration"]
-            subgraph Sidecar["AuthProxy Sidecar"]
-                authproxy["auth-proxy<br/>:8080"]
+            subgraph Sidecar["AuthProxy Sidecar<br/>(Envoy + Ext Proc)"]
                 envoy["envoy-proxy<br/>:15123"]
                 extproc["ext-proc<br/>(token exchange)"]
             end
@@ -273,6 +274,7 @@ The `setup_keycloak` script creates:
 - `auth-target` client (token exchange target audience)
 - `agent-spiffe-aud` scope (realm default - adds Agent's SPIFFE ID to all tokens)
 - `auth-target-aud` scope (for exchanged tokens)
+- `alice` demo user (username: `alice`, password: `alice123`) for testing user token flows
 
 **Note:** No static `agent` client is created - the AuthProxy uses the dynamically
 registered client credentials from `/shared/` (populated by client-registration).
@@ -498,12 +500,13 @@ Result: authorized
 
 #### Token Claims Summary
 
-| Claim | Before Exchange | After Exchange |
-|-------|-----------------|----------------|
-| `aud` | Agent's SPIFFE ID | `auth-target` |
-| `azp` | SPIFFE ID (caller) | Agent's SPIFFE ID |
-| `scope` | `agent-spiffe-aud profile email` | `auth-target-aud` |
-| `iss` | Keycloak realm | Keycloak realm (same) |
+| Claim | Before Exchange | After Exchange | Description |
+|-------|-----------------|----------------|-------------|
+| `aud` | Agent's SPIFFE ID | `auth-target` | Audience - who the token is for |
+| `azp` | Agent's SPIFFE ID | Agent's SPIFFE ID | Authorized party - who performed the exchange |
+| `scope` | `agent-spiffe-aud profile email` | `openid auth-target-aud` | Scopes granted |
+| `iss` | Keycloak realm | Keycloak realm (same) | Issuer - who issued the token |
+| `sub` | Service account UUID | Service account UUID (same) | Subject - the identity |
 
 The key changes during token exchange:
 - **`aud`** transforms from Agent's SPIFFE ID to `auth-target`, allowing the target service to validate the token

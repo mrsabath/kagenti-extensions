@@ -593,6 +593,7 @@ The setup script creates:
 - `auth-target` client (token exchange target audience)
 - `agent-spiffe-aud` scope (realm default - automatically adds Agent's SPIFFE ID to all tokens' audience)
 - `auth-target-aud` scope (for exchanged tokens)
+- `alice` demo user (username: `alice`, password: `alice123`) for testing user token flows
 
 **Important:** The `agent-spiffe-aud` scope is a **realm default scope** that enables the security model. It ensures that every token issued includes the agent's SPIFFE ID in the audience claim, which authorizes the AuthProxy (using the same credentials) to exchange tokens on behalf of the agent.
 
