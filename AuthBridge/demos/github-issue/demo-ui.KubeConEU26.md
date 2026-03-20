@@ -217,7 +217,7 @@ kubectl wait --for=condition=ready pod/test-client -n team1 --timeout=30s
 
 ```bash
 kubectl exec test-client -n team1 -- curl -s \
-  http://git-issue-agent:8080/.well-known/agent.json | jq .name
+  http://git-issue-agent:8080/.well-known/agent.json | jq
 # Expected: "Github issue agent"
 ```
 
