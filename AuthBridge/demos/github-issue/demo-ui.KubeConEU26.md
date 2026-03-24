@@ -218,7 +218,6 @@ kubectl wait --for=condition=ready pod/test-client -n team1 --timeout=30s
 ```bash
 kubectl exec test-client -n team1 -- curl -s \
   http://git-issue-agent:8080/.well-known/agent.json | jq
-# Expected: "Github issue agent"
 ```
 
 ### 8b. Inbound Rejection — No Token
@@ -226,7 +225,6 @@ kubectl exec test-client -n team1 -- curl -s \
 ```bash
 kubectl exec test-client -n team1 -- curl -s \
   http://git-issue-agent:8080/
-# Expected: {"error":"unauthorized","message":"missing Authorization header"}
 ```
 
 ### 8c. Inbound Rejection — Invalid Token
@@ -235,7 +233,6 @@ kubectl exec test-client -n team1 -- curl -s \
 kubectl exec test-client -n team1 -- curl -s \
   -H "Authorization: Bearer invalid-token" \
   http://git-issue-agent:8080/
-# Expected: {"error":"unauthorized","message":"token validation failed: ..."}
 ```
 
 ### 8d. End-to-End Test with Valid Token
