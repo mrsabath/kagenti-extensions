@@ -172,33 +172,6 @@ Created Keycloak client "spiffe://localtest.me/ns/team1/sa/git-issue-agent"
 Client registration complete!
 ```
 
-### Check agent logs
-
-```bash
-kubectl logs deployment/git-issue-agent -n team1 -c agent
-```
-
-Expected:
-
-```
-INFO: JWKS_URI is set - using JWT Validation middleware
-INFO:     Started server process [17]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-```
-
----
-
-## Step 7: Chat via Kagenti UI
-
-1. Navigate to the **Agent Catalog** in the Kagenti UI.
-2. Select the `team1` namespace.
-3. Under **Available Agents**, select `git-issue-agent` and click **View Details**.
-4. Verify the **Agent Card** is visible.
-5. Use the **Chat** panel to send: "List 10 open issues in kagenti/kagenti repo".
-6. The agent should respond with a list of GitHub issues.
-
 ---
 
 ## Step 8: Test via CLI
