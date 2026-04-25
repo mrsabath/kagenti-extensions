@@ -19,8 +19,9 @@
 #                                 should be >= spec.progressDeadlineSeconds in the YAML)
 #   WEATHER_AGENT_ROLLOUT_TIMEOUT kubectl rollout status for the agent (default: 1800s)
 #   WEATHER_TOOL_KC_CLIENT_SEC    setup_keycloak --tool-client-timeout, seconds (default: 900)
-#   WEATHER_ADVANCED_PRUNE_LEGACY If 1, scale down baseline weather-service/weather-tool
-#                                 before advanced deploy (default: 0). Useful in single-node Kind CI.
+#   WEATHER_ADVANCED_PRUNE_LEGACY  If 1, scale down baseline weather-service + weather-tool
+#                                 (wave-90) before/around advanced agent deploy so single-node
+#                                 Kind can fit sidecar-heavy advanced pods (default: 0)
 #
 set -euo pipefail
 
@@ -56,13 +57,37 @@ need_cmd kubectl
 need_cmd jq
 need_cmd curl
 
-if [[ "$SKIP_DEPLOY" != "1" ]]; then
-  if [[ "$WEATHER_ADVANCED_PRUNE_LEGACY" == "1" ]]; then
-    log "Scaling down baseline weather workloads to free CPU for advanced sidecars..."
-    kubectl scale deployment/weather-service deployment/weather-tool -n "$NAMESPACE" --replicas=0 --timeout=300s >/dev/null 2>&1 || true
-    kubectl wait --for=delete pod -n "$NAMESPACE" -l app.kubernetes.io/name=weather-service --timeout=300s >/dev/null 2>&1 || true
-    kubectl wait --for=delete pod -n "$NAMESPACE" -l app.kubernetes.io/name=weather-tool --timeout=300s >/dev/null 2>&1 || true
+# Baseline weather-service + weather-tool (pytest wave 90) can fill a single Kind node;
+# without this, weather-service-advanced often stays Pending (Insufficient cpu).
+prune_baseline_weather_workloads() {
+  if [[ "$WEATHER_ADVANCED_PRUNE_LEGACY" != "1" ]]; then
+    return 0
   fi
+  local have=0
+  kubectl get deployment/weather-service -n "$NAMESPACE" &>/dev/null && have=1
+  kubectl get deployment/weather-tool -n "$NAMESPACE" &>/dev/null && have=1
+  if [[ "$have" -eq 0 ]]; then
+    return 0
+  fi
+  log "Scaling down baseline weather-service and weather-tool (free CPU for advanced workloads)..."
+  kubectl scale deployment/weather-service deployment/weather-tool -n "$NAMESPACE" --replicas=0 2>/dev/null || true
+  local i
+  for i in $(seq 1 90); do
+    local c1 c2
+    c1=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=weather-service --no-headers 2>/dev/null | wc -l | tr -d ' ' || echo 0)
+    c2=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=weather-tool --no-headers 2>/dev/null | wc -l | tr -d ' ' || echo 0)
+    c1=${c1:-0}
+    c2=${c2:-0}
+    if [[ "$c1" -eq 0 && "$c2" -eq 0 ]]; then
+      return 0
+    fi
+    sleep 2
+  done
+  log "WARNING: timed out waiting for baseline weather pods to go away; continuing"
+}
+
+if [[ "$SKIP_DEPLOY" != "1" ]]; then
+  prune_baseline_weather_workloads
   log "Applying authproxy-routes ConfigMap..."
   kubectl apply -f "$SCRIPT_DIR/k8s/configmaps-advanced.yaml"
 
@@ -95,6 +120,7 @@ if [[ "$SKIP_DEPLOY" != "1" ]]; then
       --tool-client-timeout "$WEATHER_TOOL_KC_CLIENT_SEC"
   )
 
+  prune_baseline_weather_workloads
   log "Deploying weather agent (advanced)..."
   kubectl apply -f "$SCRIPT_DIR/k8s/weather-service-advanced.yaml"
   if kubectl get crd agentruntimes.agent.kagenti.dev &>/dev/null; then
