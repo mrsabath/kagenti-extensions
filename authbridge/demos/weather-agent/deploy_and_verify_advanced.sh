@@ -19,6 +19,8 @@
 #                                 should be >= spec.progressDeadlineSeconds in the YAML)
 #   WEATHER_AGENT_ROLLOUT_TIMEOUT kubectl rollout status for the agent (default: 1800s)
 #   WEATHER_TOOL_KC_CLIENT_SEC    setup_keycloak --tool-client-timeout, seconds (default: 900)
+#   WEATHER_ADVANCED_PRUNE_LEGACY If 1, scale down baseline weather-service/weather-tool
+#                                 before advanced deploy (default: 0). Useful in single-node Kind CI.
 #
 set -euo pipefail
 
@@ -43,6 +45,7 @@ KC_USER_CLIENT_ID="${KC_USER_CLIENT_ID:-weather-advanced-e2e}"
 WEATHER_TOOL_ROLLOUT_TIMEOUT="${WEATHER_TOOL_ROLLOUT_TIMEOUT:-1800s}"
 WEATHER_AGENT_ROLLOUT_TIMEOUT="${WEATHER_AGENT_ROLLOUT_TIMEOUT:-1800s}"
 WEATHER_TOOL_KC_CLIENT_SEC="${WEATHER_TOOL_KC_CLIENT_SEC:-900}"
+WEATHER_ADVANCED_PRUNE_LEGACY="${WEATHER_ADVANCED_PRUNE_LEGACY:-0}"
 
 log() { printf '%s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
@@ -54,6 +57,12 @@ need_cmd jq
 need_cmd curl
 
 if [[ "$SKIP_DEPLOY" != "1" ]]; then
+  if [[ "$WEATHER_ADVANCED_PRUNE_LEGACY" == "1" ]]; then
+    log "Scaling down baseline weather workloads to free CPU for advanced sidecars..."
+    kubectl scale deployment/weather-service deployment/weather-tool -n "$NAMESPACE" --replicas=0 --timeout=300s >/dev/null 2>&1 || true
+    kubectl wait --for=delete pod -n "$NAMESPACE" -l app.kubernetes.io/name=weather-service --timeout=300s >/dev/null 2>&1 || true
+    kubectl wait --for=delete pod -n "$NAMESPACE" -l app.kubernetes.io/name=weather-tool --timeout=300s >/dev/null 2>&1 || true
+  fi
   log "Applying authproxy-routes ConfigMap..."
   kubectl apply -f "$SCRIPT_DIR/k8s/configmaps-advanced.yaml"
 
